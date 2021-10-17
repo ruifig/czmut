@@ -1,0 +1,21 @@
+{
+	"name": "czmut",
+	"keyword": "unit tests",
+	"description": "Simple and small unit test framework inspired by catch",
+	"homepage": "https://crazygaze.com",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ruifig/czmut.git"
+	},
+	"version": "0.0.1",
+	"authors":{
+		"name" : "Rui Figueira",
+		"url": "https://crazygaze.com"
+	},
+	"exclude": [
+	],
+	"frameworks": "*",
+	"platforms": "*",
+	"build" : {
+	}
+}
