@@ -4,6 +4,12 @@
 .vscode/launch.json
 .vscode/ipch
 
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 visualstudio/.vs
-visualstudio/Debug
+visualstudio/Build
+
 
