@@ -1,5 +1,7 @@
 #pragma once
 
+#include "S:/Temp/Puto/ConsoleApplication1/vaargs_to_string_array.h"
+
 #ifdef _WIN32
 	#define CZMUT_DESKTOP 1
 #else
@@ -160,14 +162,15 @@ public:
 		}
 		EntryFunction func;
 		Section rootSection;
+		const __FlashStringHelper* typeName = nullptr;
 	};
 	
 	TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags);
 	virtual ~TestCase() ;
 	static TestCase* getActive();
+	static const __FlashStringHelper* getActiveTestType();
 	static bool run();
 	const __FlashStringHelper* getName() const;
-
 	virtual void onEnter() {}
 	virtual void onExit() {}
 
@@ -177,6 +180,20 @@ protected:
 		m_entries = entries;
 		m_numEntries = count;
 	}
+
+	template<typename A0>
+	void addTypeNames(int index, A0&& a)
+	{
+		m_entries[index].typeName = a;
+	}
+
+	template<typename A0, typename... AN>
+	void addTypeNames(int index, A0&& a, AN&&... aN)
+	{
+		m_entries[index].typeName = a;
+		addTypeNames(index+1, ministd::forward<AN>(aN)...);
+	}
+
 private:
 
 	const __FlashStringHelper* m_name;
@@ -188,6 +205,7 @@ private:
 	static TestCase* ms_first;
 	static TestCase* ms_last;
 	static TestCase* ms_active;
+	static Entry* ms_activeEntry;
 };
 
 class SingleEntryTestCase : public TestCase
@@ -351,12 +369,17 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 				, m_myEntries { (&TestFunction<Type>)... } \
 			{ \
 				setEntries(m_myEntries, sizeof...(Type)); \
+				addTypeNames(0, BUILD_STRING_LIST_P(__VA_ARGS__)); \
 			} \
 		}; \
 		TestClass< __VA_ARGS__ > CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase); \
 	} \
 	template<typename TestType> \
 	static void TestFunction()
+
+#define BUILD_STRING_PARAMETERS(...) \
+   EVAL(MAKE_INITIALIZER TRANSFORM(Z_ARG, (__VA_ARGS__)));
+
 
 #define INTERNAL_CHECK(expr, file, line) \
 	if (!(expr)) \

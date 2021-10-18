@@ -57,7 +57,7 @@ TEST_CASE("Hello World", "[vector]")
 
 TEMPLATED_TEST_CASE("Test1", "[vector]", int, double)
 {
-  CHECK(1 == 2);
+  cz::mut::detail::_logN(F("Type "), cz::mut::TestCase::getActiveTestType(), F("\n"));
 }
 
 void operator delete(void* ptr, unsigned int size)

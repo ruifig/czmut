@@ -22,6 +22,7 @@ namespace cz::mut::detail
 			::__debugbreak();
 		#elif CZMUT_AVR8
 			__asm__ __volatile__("break");
+			while(true) {};
 		#else
 			#error Unknown or unsupported platform
 		#endif
@@ -119,15 +120,21 @@ const char* getFilename(const char* file)
 
 void logFailedTest(const char* file, int line)
 {
-	detail::_logN(F("Test ["), TestCase::getActive()->getName(), "] failed. " );
-	detail::_logN(F("Section ["), Section::getActive()->getName(), "]. " );
-	detail::_logN(F("Location ["), file, ":", line, "]:\n");
+	detail::_logN(F("Test ["), TestCase::getActive()->getName());
+	const __FlashStringHelper* typeName = TestCase::getActive()->getActiveTestType();
+	if (typeName)
+	{
+		detail::_logN(F("<"), typeName, F(">"));
+	}
+	detail::_logN(F("] failed. " ));
+	detail::_logN(F("Section ["), Section::getActive()->getName(), F("]. "));
+	detail::_logN(F("Location ["), file, F(":"), line, F("]:\n"));
 }
 
 void logFailure(const char* file, int line, const char* expr_str)
 {
 	logFailedTest(file, line);
-	detail::_logN(F("    Expression: "), expr_str, "\n");
+	detail::_logN(F("    Expression: "), expr_str, F("\n"));
 	CZMUT_FLUSHLOG();
 }
 
@@ -135,7 +142,7 @@ void logFailure(const char* file, int line, const char* expr_str)
 void logFailure(const char* file, int line, const __FlashStringHelper* expr_str)
 {
 	logFailedTest(file, line);
-	detail::_logN(F("    Expression: "), expr_str, "\n");
+	detail::_logN(F("    Expression: "), expr_str, F("\n"));
 	CZMUT_FLUSHLOG();
 }
 #endif
@@ -146,6 +153,7 @@ void logFailure(const char* file, int line, const __FlashStringHelper* expr_str)
 TestCase* TestCase::ms_first;
 TestCase* TestCase::ms_last;
 TestCase* TestCase::ms_active;
+TestCase::Entry* TestCase::ms_activeEntry;
 
 TestCase::TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags)
 	: m_name(name)
@@ -169,9 +177,11 @@ TestCase::~TestCase()
 bool TestCase::run()
 {
 	TestCase* test = ms_first;
+	ms_active = nullptr;
+	ms_activeEntry = nullptr;
 
 	int testCount = 0;
-	int testPasses = 0;
+	int totalTestCalls = 0;
 
 	while (test)
 	{
@@ -185,14 +195,14 @@ bool TestCase::run()
 		detail::_logStr(F("\n"));
 		for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
 		{
-			Entry& entry = test->m_entries[entryIndex];
+			ms_activeEntry = &test->m_entries[entryIndex];
 			ms_active = test;
-			while(entry.rootSection.tryExecute())
+			while(ms_activeEntry->rootSection.tryExecute())
 			{
-				testPasses++;
-				AutoSection sec(entry.rootSection);
+				totalTestCalls++;
+				AutoSection sec(ms_activeEntry->rootSection);
 				test->onEnter();
-				entry.func();
+				ms_activeEntry->func();
 				test->onExit();
 			}
 		}
@@ -200,14 +210,22 @@ bool TestCase::run()
 		test = test->m_next;
 	}
 
-	detail::_logFmt(F("%d tests ran (%d passes)\n"), testCount, testPasses);
+	detail::_logFmt(F("%d tests ran\n"), testCount);
+	detail::_logFmt(F("%d test calls\n"), totalTestCalls);
 
+	ms_active = nullptr;
+	ms_activeEntry = nullptr;
 	return true;
 }
 
 cz::mut::TestCase* TestCase::getActive()
 {
 	return ms_active;
+}
+
+const __FlashStringHelper* TestCase::getActiveTestType()
+{
+	return (ms_activeEntry) ? ms_activeEntry->typeName : nullptr;
 }
 
 const __FlashStringHelper* TestCase::getName() const
