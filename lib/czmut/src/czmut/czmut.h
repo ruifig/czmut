@@ -1,7 +1,5 @@
 #pragma once
 
-#include "S:/Temp/Puto/ConsoleApplication1/vaargs_to_string_array.h"
-
 #ifdef _WIN32
 	#define CZMUT_DESKTOP 1
 #else
@@ -37,12 +35,13 @@
 #if __has_include(<initializer_list>) && (!defined(CZMUT_USE_OWN_INITIALIZER_LIST) || CZMUT_USE_OWN_INITIALIZER_LIST==0)
 	#include <initializer_list>
 #else
-	#include "./ministd/initializer_list"
+	#include "./helpers/initializer_list"
 #endif
 
-#include "./ministd/czmut_ministd.h"
+#include "./helpers/ministd.h"
 
 #include <stdio.h>
+#include "./helpers/vaargs_to_string_array.h"
 
 namespace cz::mut::detail
 {
@@ -369,16 +368,13 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 				, m_myEntries { (&TestFunction<Type>)... } \
 			{ \
 				setEntries(m_myEntries, sizeof...(Type)); \
-				addTypeNames(0, BUILD_STRING_LIST_P(__VA_ARGS__)); \
+				addTypeNames(0, CZMUT_BUILD_STRING_LIST_P(__VA_ARGS__)); \
 			} \
 		}; \
 		TestClass< __VA_ARGS__ > CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase); \
 	} \
 	template<typename TestType> \
 	static void TestFunction()
-
-#define BUILD_STRING_PARAMETERS(...) \
-   EVAL(MAKE_INITIALIZER TRANSFORM(Z_ARG, (__VA_ARGS__)));
 
 
 #define INTERNAL_CHECK(expr, file, line) \
@@ -388,34 +384,6 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 		cz::mut::detail::_debugbreak(); \
 	}
 
-/*
-Usage:
-
-TEST_CASE("Foo tests", "[foo]")
-{
-	... code ...
-
-	SECTION("Section A1")
-	{
-		... code ...
-		SECTION("Section B1")
-		{
-			... code ...
-		}
-		... code ...
-		SECTION("Section B2")
-		{
-			... code ...
-		}
-	}
-
-	SECTION("Section A2")
-	{
-		... code ...
-	}
-	... code ...
-}
-*/
 
 #define TEST_CASE(Description, Tags) INTERNAL_TEST_CASE(cz::mut::SingleEntryTestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc))
 
@@ -436,5 +404,5 @@ TEST_CASE("Foo tests", "[foo]")
 
 #define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(__FILE__), __LINE__)
 
-#define CZMUT_LOG(fmt, ...) cz::mut::detail::_log(F(fmt), __VA_ARGS__)
+#define CZMUT_LOG(fmt, ...) cz::mut::detail::_logFmt(F(fmt), __VA_ARGS__)
 #define CZMUT_FLUSHLOG() cz::mut::detail::_flushlog()
