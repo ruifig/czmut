@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #define CZMUT_ASSERT(expr) \
 	if (!(expr)) \
 	{ \
-		cz::mut::detail::_log(F("Assert: %s:%d, %s"), cz::mut::getFilename(__FILE__), __LINE__, #expr); \
+		cz::mut::detail::_logN(F("Assert: "), cz::mut::getFilename(__FILE__), ":", __LINE__, ", ", F(#expr)); \
 		cz::mut::detail::_debugbreak(); \
 	}
 
@@ -26,26 +27,28 @@ namespace cz::mut::detail
 		#endif
 	}
 
+#if CZMUT_DESKTOP
 	void _logStr(const char* str)
 	{
-#if CZMUT_DESKTOP
 		printf(str);
-#elif CZMUT_ARDUINO
-				constexpr int bufSize = 100;
-				char buf[bufSize];
-				vsnprintf_P(buf, bufSize, (const char*)fmt, args);
-				buf[bufSize-1] = 0;
-				Serial.print(buf);
-		#else
-				#error Unknown or unsupported platform
-		#endif
 	}
+#elif defined(ARDUINO)
+	void _logStr(const char* str)
+	{
+		Serial.print(str);
+	}
+	void _logStr(const __FlashStringHelper* str)
+	{
+		Serial.print(str);
+	}
+#else
+		#error Unknown or unsupported platform
+#endif
 
-	void _log(const __FlashStringHelper* fmt, ...)
+	void _logFmt(const __FlashStringHelper* fmt, ...)
 	{
 		va_list args;
 		va_start(args, fmt);
-
 #if CZMUT_DESKTOP
 		vprintf(fmt, args);
 #elif CZMUT_ARDUINO
@@ -72,6 +75,35 @@ namespace cz::mut::detail
 		#endif
 	}
 
+	void log(const char* str)
+	{
+		_logStr(str);
+	}
+
+#if defined(ARDUINO)
+	void log(const __FlashStringHelper* str)
+	{
+		_logStr(str);
+	}
+#endif
+
+	void log(int val)
+	{
+		constexpr int bufSize = 2 + 3 * sizeof(val);
+		char buf[bufSize];
+		itoa(val, buf, 10);
+		_logStr(buf);
+	}
+	
+	void log(unsigned int val)
+	{
+		constexpr int bufSize = 1 + 3 * sizeof(val);
+		char buf[bufSize];
+		itoa(val, buf, 10);
+		_logStr(buf);
+	}
+
+
 } // cz::mut::detail
 
 namespace cz::mut
@@ -85,12 +117,28 @@ const char* getFilename(const char* file)
 	return c ? c+1 : file;
 }
 
+void logFailedTest(const char* file, int line)
+{
+	detail::_logN(F("Test ["), TestCase::getActive()->getName(), "] failed. " );
+	detail::_logN(F("Section ["), Section::getActive()->getName(), "]. " );
+	detail::_logN(F("Location ["), file, ":", line, "]:\n");
+}
+
 void logFailure(const char* file, int line, const char* expr_str)
 {
-	CZMUT_LOG("Test [%s] failed. Section [%s]. Location [%s:%u]:\n", cz::mut::TestCase::getActive()->getName(), cz::mut::Section::getActive()->getName(), file, line);
-	CZMUT_LOG("Expression: %s\n", expr_str);
+	logFailedTest(file, line);
+	detail::_logN(F("    Expression: "), expr_str, "\n");
 	CZMUT_FLUSHLOG();
 }
+
+#if defined(ARDUINO)
+void logFailure(const char* file, int line, const __FlashStringHelper* expr_str)
+{
+	logFailedTest(file, line);
+	detail::_logN(F("    Expression: "), expr_str, "\n");
+	CZMUT_FLUSHLOG();
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // TestCase
@@ -129,13 +177,12 @@ bool TestCase::run()
 	{
 		testCount++;
 		// Print in two steps, because the second one is also PROGMEM
-		detail::_log(F("**** Running Test "));
-		detail::_log(test->m_name);
+		detail::_logN(F("**** Running Test "), test->m_name);
 		if (test->m_numEntries > 1)
 		{
-			detail::_log(F(" (%d types)"), test->m_numEntries);
+			detail::_logFmt(F(" (%d types)"), test->m_numEntries);
 		}
-		detail::_log(F("\n"));
+		detail::_logStr(F("\n"));
 		for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
 		{
 			Entry& entry = test->m_entries[entryIndex];
@@ -153,7 +200,7 @@ bool TestCase::run()
 		test = test->m_next;
 	}
 
-	CZMUT_LOG("%d tests ran (%d passes)\n", testCount, testPasses);
+	detail::_logFmt(F("%d tests ran (%d passes)\n"), testCount, testPasses);
 
 	return true;
 }

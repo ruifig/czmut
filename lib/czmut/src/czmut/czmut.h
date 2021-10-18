@@ -50,9 +50,36 @@ namespace cz::mut::detail
 #if defined(ARDUINO)
 	void _logStr(const __FlashStringHelper* str);
 #endif
-
-	void _log(const __FlashStringHelper* fmt, ...);
+	void _logFmt(const __FlashStringHelper* fmt, ...);
 	void _flushlog();
+
+	/*
+	template<typename T>
+	void log(const T&)
+	{
+		static_assert(false, "Not implemented for this type");
+	}
+	*/
+
+#if defined(ARDUINO)
+	void log(const __FlashStringHelper* str);
+#endif
+	void log(const char* str);
+	void log(int val);
+	void log(unsigned int val);
+
+	template<typename A0>
+	void _logN(A0&& a0)
+	{
+		log(ministd::forward<A0>(a0));
+	}
+
+	template<typename A0, typename... AN>
+	void _logN(A0&& a0, AN&&... aN)
+	{
+		log(ministd::forward<A0>(a0));
+		_logN(ministd::forward<AN>(aN)...);
+	}
 
 } // cz::mut::detail
 
@@ -74,7 +101,10 @@ namespace cz::mut
 {
 
 const char* getFilename(const char* file);
-void logFailure(const char* file, int line, const char* expr_str);
+// NOTE: No need for a version of logFailure that takes "const char* expr_str".
+//	* On Arduino, we'll always use __FlashStringHelper
+//	* On other platforms, __FlashStringHelper is "char", so no need for anything else
+void logFailure(const char* file, int line, const __FlashStringHelper* expr_str);
 
 enum class SectionState
 {
@@ -331,7 +361,7 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 #define INTERNAL_CHECK(expr, file, line) \
 	if (!(expr)) \
 	{ \
-		cz::mut::logFailure(file, line, #expr); \
+		cz::mut::logFailure(file, line, F(#expr)); \
 		cz::mut::detail::_debugbreak(); \
 	}
 
