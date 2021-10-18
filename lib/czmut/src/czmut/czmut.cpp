@@ -92,11 +92,17 @@ namespace cz::mut::detail
 	}
 #endif
 
+#if CZMUT_DESKTOP // On Visual studio, we need to use _itoa
+	#define CZMUT_itoa _itoa
+#else
+	#define CZMUT_itoa itoa
+#endif
+
 	void log(int val)
 	{
 		constexpr int bufSize = 2 + 3 * sizeof(val);
 		char buf[bufSize];
-		itoa(val, buf, 10);
+		CZMUT_itoa(val, buf, 10);
 		logStr(buf);
 	}
 	
@@ -104,10 +110,25 @@ namespace cz::mut::detail
 	{
 		constexpr int bufSize = 1 + 3 * sizeof(val);
 		char buf[bufSize];
-		itoa(val, buf, 10);
+		CZMUT_itoa(val, buf, 10);
 		logStr(buf);
 	}
 
+	void log(long val)
+	{
+		constexpr int bufSize = 2 + 3 * sizeof(val);
+		char buf[bufSize];
+		CZMUT_itoa(val, buf, 10);
+		logStr(buf);
+	}
+	
+	void log(unsigned long val)
+	{
+		constexpr int bufSize = 1 + 3 * sizeof(val);
+		char buf[bufSize];
+		CZMUT_itoa(val, buf, 10);
+		logStr(buf);
+	}
 
 } // cz::mut::detail
 
@@ -322,7 +343,7 @@ void Section::end()
 	}
 	else
 	{
-		CZMUT_ASSERT(0);
+		CZMUT_ASSERT(false);
 	}
 
 	if (m_parent)

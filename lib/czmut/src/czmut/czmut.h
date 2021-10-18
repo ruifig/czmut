@@ -60,6 +60,8 @@ namespace cz::mut::detail
 	void log(const char* str);
 	void log(int val);
 	void log(unsigned int val);
+	void log(long val);
+	void log(unsigned long val);
 
 	template<typename A0>
 	void logN(A0&& a0)
