@@ -57,7 +57,7 @@ TEST_CASE("Hello World", "[vector]")
 
 TEMPLATED_TEST_CASE("Test1", "[vector]", int, double)
 {
-  cz::mut::detail::_logN(F("Type "), cz::mut::TestCase::getActiveTestType(), F("\n"));
+  cz::mut::detail::logN(F("Type "), cz::mut::TestCase::getActiveTestType(), F("\n"));
 
   CZMUT_LOG("Hello world! %S, %d\n", cz::mut::TestCase::getActiveTestType(), 10);
 }

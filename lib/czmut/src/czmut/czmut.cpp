@@ -4,11 +4,12 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+// Used internally only for own library development
 #define CZMUT_ASSERT(expr) \
 	if (!(expr)) \
 	{ \
-		cz::mut::detail::_logN(F("Assert: "), cz::mut::getFilename(__FILE__), ":", __LINE__, ", ", F(#expr)); \
-		cz::mut::detail::_debugbreak(); \
+		cz::mut::detail::logN(F("Assert: "), cz::mut::getFilename(__FILE__), ":", __LINE__, ", ", F(#expr)); \
+		cz::mut::detail::debugbreak(); \
 	}
 
 //
@@ -16,29 +17,32 @@
 //
 namespace cz::mut::detail
 {
-	void _debugbreak()
+	void debugbreak()
 	{
 		#ifdef _WIN32
+			// Win32 debug instruction
 			::__debugbreak();
 		#elif CZMUT_AVR8
 			__asm__ __volatile__("break");
-			while(true) {};
 		#else
 			#error Unknown or unsupported platform
 		#endif
+
+		// Make sure we don't go anywhere and it stops here, since czmut doesn't can't jump out of tests
+		while(true) {};
 	}
 
 #if CZMUT_DESKTOP
-	void _logStr(const char* str)
+	void logStr(const char* str)
 	{
 		printf(str);
 	}
 #elif defined(ARDUINO)
-	void _logStr(const char* str)
+	void logStr(const char* str)
 	{
 		Serial.print(str);
 	}
-	void _logStr(const __FlashStringHelper* str)
+	void logStr(const __FlashStringHelper* str)
 	{
 		Serial.print(str);
 	}
@@ -46,7 +50,7 @@ namespace cz::mut::detail
 		#error Unknown or unsupported platform
 #endif
 
-	void _logFmt(const __FlashStringHelper* fmt, ...)
+	void logFmt(const __FlashStringHelper* fmt, ...)
 	{
 		va_list args;
 		va_start(args, fmt);
@@ -65,7 +69,7 @@ namespace cz::mut::detail
 		va_end(args);
 	}
 
-	void _flushlog()
+	void flushlog()
 	{
 		#if CZMUT_DESKTOP
 			fflush(stdout);
@@ -78,13 +82,13 @@ namespace cz::mut::detail
 
 	void log(const char* str)
 	{
-		_logStr(str);
+		logStr(str);
 	}
 
 #if defined(ARDUINO)
 	void log(const __FlashStringHelper* str)
 	{
-		_logStr(str);
+		logStr(str);
 	}
 #endif
 
@@ -93,7 +97,7 @@ namespace cz::mut::detail
 		constexpr int bufSize = 2 + 3 * sizeof(val);
 		char buf[bufSize];
 		itoa(val, buf, 10);
-		_logStr(buf);
+		logStr(buf);
 	}
 	
 	void log(unsigned int val)
@@ -101,7 +105,7 @@ namespace cz::mut::detail
 		constexpr int bufSize = 1 + 3 * sizeof(val);
 		char buf[bufSize];
 		itoa(val, buf, 10);
-		_logStr(buf);
+		logStr(buf);
 	}
 
 
@@ -120,21 +124,21 @@ const char* getFilename(const char* file)
 
 void logFailedTest(const char* file, int line)
 {
-	detail::_logN(F("Test ["), TestCase::getActive()->getName());
+	detail::logN(F("Test ["), TestCase::getActive()->getName());
 	const __FlashStringHelper* typeName = TestCase::getActive()->getActiveTestType();
 	if (typeName)
 	{
-		detail::_logN(F("<"), typeName, F(">"));
+		detail::logN(F("<"), typeName, F(">"));
 	}
-	detail::_logN(F("] failed. " ));
-	detail::_logN(F("Section ["), Section::getActive()->getName(), F("]. "));
-	detail::_logN(F("Location ["), file, F(":"), line, F("]:\n"));
+	detail::logN(F("] failed. " ));
+	detail::logN(F("Section ["), Section::getActive()->getName(), F("]. "));
+	detail::logN(F("Location ["), file, F(":"), line, F("]:\n"));
 }
 
 void logFailure(const char* file, int line, const char* expr_str)
 {
 	logFailedTest(file, line);
-	detail::_logN(F("    Expression: "), expr_str, F("\n"));
+	detail::logN(F("    Expression: "), expr_str, F("\n"));
 	CZMUT_FLUSHLOG();
 }
 
@@ -142,7 +146,7 @@ void logFailure(const char* file, int line, const char* expr_str)
 void logFailure(const char* file, int line, const __FlashStringHelper* expr_str)
 {
 	logFailedTest(file, line);
-	detail::_logN(F("    Expression: "), expr_str, F("\n"));
+	detail::logN(F("    Expression: "), expr_str, F("\n"));
 	CZMUT_FLUSHLOG();
 }
 #endif
@@ -187,12 +191,12 @@ bool TestCase::run()
 	{
 		testCount++;
 		// Print in two steps, because the second one is also PROGMEM
-		detail::_logN(F("**** Running Test "), test->m_name);
+		detail::logN(F("**** Running Test "), test->m_name);
 		if (test->m_numEntries > 1)
 		{
-			detail::_logFmt(F(" (%d types)"), test->m_numEntries);
+			detail::logFmt(F(" (%d types)"), test->m_numEntries);
 		}
-		detail::_logStr(F("\n"));
+		detail::logStr(F("\n"));
 		for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
 		{
 			ms_activeEntry = &test->m_entries[entryIndex];
@@ -210,8 +214,8 @@ bool TestCase::run()
 		test = test->m_next;
 	}
 
-	detail::_logFmt(F("%d tests ran\n"), testCount);
-	detail::_logFmt(F("%d test calls\n"), totalTestCalls);
+	detail::logFmt(F("%d tests ran\n"), testCount);
+	detail::logFmt(F("%d test calls\n"), totalTestCalls);
 
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;

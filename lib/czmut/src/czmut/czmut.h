@@ -45,22 +45,14 @@
 
 namespace cz::mut::detail
 {
-	void _debugbreak();
+	void debugbreak();
 
-	void _logStr(const char* str);
+	void logStr(const char* str);
 #if defined(ARDUINO)
-	void _logStr(const __FlashStringHelper* str);
+	void logStr(const __FlashStringHelper* str);
 #endif
-	void _logFmt(const __FlashStringHelper* fmt, ...);
-	void _flushlog();
-
-	/*
-	template<typename T>
-	void log(const T&)
-	{
-		static_assert(false, "Not implemented for this type");
-	}
-	*/
+	void logFmt(const __FlashStringHelper* fmt, ...);
+	void flushlog();
 
 #if defined(ARDUINO)
 	void log(const __FlashStringHelper* str);
@@ -70,16 +62,16 @@ namespace cz::mut::detail
 	void log(unsigned int val);
 
 	template<typename A0>
-	void _logN(A0&& a0)
+	void logN(A0&& a0)
 	{
 		log(ministd::forward<A0>(a0));
 	}
 
 	template<typename A0, typename... AN>
-	void _logN(A0&& a0, AN&&... aN)
+	void logN(A0&& a0, AN&&... aN)
 	{
 		log(ministd::forward<A0>(a0));
-		_logN(ministd::forward<AN>(aN)...);
+		logN(ministd::forward<AN>(aN)...);
 	}
 
 } // cz::mut::detail
@@ -96,7 +88,7 @@ namespace cz::mut::detail
 		CZMUT_CONCATENATE(str,__LINE__)
 #endif
 
-#define CZMUT_FLUSHLOG() cz::mut::detail::_flushlog()
+#define CZMUT_FLUSHLOG() cz::mut::detail::flushlog()
 
 namespace cz::mut
 {
@@ -381,7 +373,7 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 	if (!(expr)) \
 	{ \
 		cz::mut::logFailure(file, line, F(#expr)); \
-		cz::mut::detail::_debugbreak(); \
+		cz::mut::detail::debugbreak(); \
 	}
 
 
@@ -404,5 +396,5 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 
 #define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(__FILE__), __LINE__)
 
-#define CZMUT_LOG(fmt, ...) cz::mut::detail::_logFmt(F(fmt), __VA_ARGS__)
-#define CZMUT_FLUSHLOG() cz::mut::detail::_flushlog()
+#define CZMUT_LOG(fmt, ...) cz::mut::detail::logFmt(F(fmt), __VA_ARGS__)
+#define CZMUT_FLUSHLOG() cz::mut::detail::flushlog()
