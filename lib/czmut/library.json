@@ -17,5 +17,7 @@
 	"frameworks": "*",
 	"platforms": "*",
 	"build" : {
+		"unflags" : ["-std=c++11", "-std=gnu+11"],
+		"flags" : [ "-std=c++17", "-std=gnu++17"]
 	}
 }
