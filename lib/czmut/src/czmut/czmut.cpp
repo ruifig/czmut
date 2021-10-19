@@ -145,21 +145,20 @@ const char* getFilename(const char* file)
 
 void logFailedTest(const char* file, int line)
 {
-	detail::logN(F("Test ["), TestCase::getActive()->getName());
+	detail::logN(F("FAILED: Test ["), TestCase::getActive()->getName());
 	const __FlashStringHelper* typeName = TestCase::getActive()->getActiveTestType();
 	if (typeName)
 	{
 		detail::logN(F("<"), typeName, F(">"));
 	}
-	detail::logN(F("] failed. " ));
-	detail::logN(F("Section ["), Section::getActive()->getName(), F("]. "));
+	detail::logN(F("]. Section [" ), Section::getActive()->getName(), F("]. "));
 	detail::logN(F("Location ["), file, F(":"), line, F("]:\n"));
 }
 
 void logFailure(const char* file, int line, const char* expr_str)
 {
 	logFailedTest(file, line);
-	detail::logN(F("    Expression: "), expr_str, F("\n"));
+	detail::logN(F("    CHECK: "), expr_str, F("\n"));
 	CZMUT_FLUSHLOG();
 }
 
@@ -167,7 +166,7 @@ void logFailure(const char* file, int line, const char* expr_str)
 void logFailure(const char* file, int line, const __FlashStringHelper* expr_str)
 {
 	logFailedTest(file, line);
-	detail::logN(F("    Expression: "), expr_str, F("\n"));
+	detail::logN(F("    CHECK: "), expr_str, F("\n"));
 	CZMUT_FLUSHLOG();
 }
 #endif
@@ -210,18 +209,20 @@ bool TestCase::run()
 
 	while (test)
 	{
-		testCount++;
-		// Print in two steps, because the second one is also PROGMEM
-		detail::logN(F("**** Running Test "), test->m_name);
-		if (test->m_numEntries > 1)
-		{
-			detail::logFmt(F(" (%d types)"), test->m_numEntries);
-		}
-		detail::logStr(F("\n"));
 		for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
 		{
 			ms_activeEntry = &test->m_entries[entryIndex];
 			ms_active = test;
+			testCount++;
+
+			// Print in two steps, because the second one is also PROGMEM
+			detail::logN(F("RUNNING: Test ["), test->m_name);
+			if (ms_active->getActiveTestType())
+			{
+				detail::logN(F("<"), ms_active->getActiveTestType(), F(">"));
+			}
+			detail::logN(F("]\n"));
+
 			while(ms_activeEntry->rootSection.tryExecute())
 			{
 				totalTestCalls++;
@@ -235,8 +236,8 @@ bool TestCase::run()
 		test = test->m_next;
 	}
 
-	detail::logFmt(F("%d tests ran\n"), testCount);
-	detail::logFmt(F("%d test calls\n"), totalTestCalls);
+	detail::logFmt(F("FINISHED : %d tests ran\n"), testCount);
+	//detail::logFmt(F("%d test calls\n"), totalTestCalls);
 
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;
@@ -373,49 +374,10 @@ void Section::onChildEnd(SectionState childState)
 	//printf("%*sSection::onChildEnd() - %s\n", m_level + 4, "", m_name);
 }
 
+bool runAll()
+{
+	return TestCase::run();
+}
+
 } // cz::mut
 
-
-#if 0
-
-TEST_CASE("vector tests", "[vector]")
-{
-	printf("Running %s\n", cz::mut::TestCase::getActive()->getName());
-
-	SECTION("A1")
-	{
-		printf("	Running A1\n");
-
-		SECTION("B1")
-		{
-			printf("		Running B1\n");
-			SECTION("C1")
-			{
-				printf("		Running C1\n");
-				CHECK(false);
-			}
-		}
-
-		SECTION("B2")
-		{
-			printf("		Running B2\n");
-		}
-
-		SECTION("B3")
-		{
-			printf("		Running B3\n");
-		}
-	}
-
-	SECTION("A2")
-	{
-		printf("	Running A2\n");
-	}
-}
-
-TEST_CASE("vector tests2", "[vector]2")
-{
-	printf("Running %s\n", cz::mut::TestCase::getActive()->getName());
-}
-
-#endif

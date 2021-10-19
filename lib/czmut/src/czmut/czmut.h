@@ -112,7 +112,7 @@ enum class SectionState
 class Section
 {
 public:
-	Section(const __FlashStringHelper* name);
+	explicit Section(const __FlashStringHelper* name);
 	~Section();
 
 	static Section* getActive();
@@ -160,14 +160,15 @@ public:
 	
 	TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags);
 	virtual ~TestCase() ;
+	static bool run();
 	static TestCase* getActive();
 	static const __FlashStringHelper* getActiveTestType();
-	static bool run();
 	const __FlashStringHelper* getName() const;
 	virtual void onEnter() {}
 	virtual void onExit() {}
 
 protected:
+
 	void setEntries(Entry* entries, int count)
 	{
 		m_entries = entries;
@@ -332,10 +333,12 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 	return true;
 }
 
+bool runAll();
+
 } // cz::mut
 
 #define INTERNAL_SECTION(Description, SectionName) \
-	if (static cz::mut::Section SectionName(Description); auto CZMUT_ANONYMOUS_VARIABLE(CZMUT_autosection) = cz::mut::AutoSection(SectionName))
+	if (static cz::mut::Section SectionName(F(Description)); auto CZMUT_ANONYMOUS_VARIABLE(CZMUT_autosection) = cz::mut::AutoSection(SectionName))
 
 #define INTERNAL_TEST_CASE(TestClass, Description, Tags, TestFunction) \
 	static void TestFunction(); \
@@ -398,5 +401,5 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 
 #define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(__FILE__), __LINE__)
 
-#define CZMUT_LOG(fmt, ...) cz::mut::detail::logFmt(F(fmt), __VA_ARGS__)
+#define CZMUT_LOG(fmt,...) cz::mut::detail::logFmt(F(fmt), ## __VA_ARGS__)
 #define CZMUT_FLUSHLOG() cz::mut::detail::flushlog()
