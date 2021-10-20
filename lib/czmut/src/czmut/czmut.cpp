@@ -94,9 +94,9 @@ namespace cz::mut::detail
 
 #if CZMUT_DESKTOP // On Visual studio, we need to use _itoa
 	#define CZMUT_itoa _itoa
-	#define strncmp_P strncmp
-	#define strnstr_P strncmp
-
+	#define strlen_P strlen
+	#define memcpy_P memcpy
+	#define pgm_read_byte(address_short) *address_short
 #else
 	#define CZMUT_itoa itoa
 #endif
@@ -201,20 +201,12 @@ TestCase::~TestCase()
 {
 }
 
-#define strcpy_P strcpy
-
+//
+// NOTE:
+// Both the parameter and test tags are copied to the stack for processing.
+// This is intentional to make this code easier/shorter
 bool TestCase::filter(const __FlashStringHelper* tags_P)
 {
-	constexpr int tagsBufSize = 100;
-	char tags[tagsBufSize];
-	if (strlen(tags_P)+1> tagsBufSize)
-	{
-		CZMUT_LOG("Filter is too big. Either make it shorter, or increase internal buffer size where this message is.");
-		return false;
-	}
-
-	strcpy_P(tags, tags_P);
-
 	auto setAll = [](bool enabled)
 	{
 		TestCase* test = ms_first;
@@ -225,7 +217,7 @@ bool TestCase::filter(const __FlashStringHelper* tags_P)
 		}
 	};
 
-	if (!tags || strlen(tags) == 0)
+	if (!tags_P || pgm_read_byte(tags_P) == 0)
 	{
 		setAll(true);
 		return true;
@@ -235,28 +227,47 @@ bool TestCase::filter(const __FlashStringHelper* tags_P)
 		setAll(false);
 	}
 
-	while(*tags)
+	constexpr int tagsBufSize = 50;
+	auto copyToStack = [tagsBufSize](char* dest, const __FlashStringHelper* src)
 	{
-		const char* p = strchr(tags, ',');
-		if (p == nullptr)
+		int len = strlen_P(reinterpret_cast<const char*>(src));
+		if (len+1> tagsBufSize)
 		{
-			p = tags+strlen(tags);
+			CZMUT_LOG("Filter or test tags is too big. Either make it shorter, or increase internal buffer size where this message is.");
+			return false;
 		}
+		memcpy_P(dest, src, len+1);
+		return true;
+	};
 
-		int len = p-tags;
+	// Copy tags parameter to stack
+	char tags[tagsBufSize];
+	if (!copyToStack(tags, tags_P))
+	{
+		return false;
+	}
 
+	char* token = strtok(tags, ",");
+	while(token)
+	{
 		bool exclude = false;
-		if (tags[0] == '~')
+		if (token[0] == '~')
 		{
-			tags++;
+			token++;
 			exclude = true;
-			len--;
 		}
 
 		TestCase* test = ms_first;
 		while (test)
 		{
-			if (strncmp_P(tags, reinterpret_cast<const char*>(test->m_tags), len) == 0)
+			// Copy test tags to stack
+			char testTags[tagsBufSize];
+			if (!copyToStack(testTags, test->m_tags))
+			{
+				return false;
+			}
+
+			if (strstr(testTags, token))
 			{
 				if (!exclude)
 				{
@@ -274,7 +285,7 @@ bool TestCase::filter(const __FlashStringHelper* tags_P)
 			test = test->m_next;
 		}
 
-		tags = p+1;
+		token = strtok(nullptr, ",");
 	}
 
 	return true;

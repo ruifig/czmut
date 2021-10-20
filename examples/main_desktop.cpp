@@ -2,5 +2,5 @@
 
 int main()
 {
-	return cz::mut::runAll(F("[example]")) ? 0 : 1;
+	return cz::mut::runAll(F("[example][basic]")) ? 0 : 1;
 }
