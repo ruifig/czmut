@@ -164,16 +164,21 @@ public:
 	
 	TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags);
 	virtual ~TestCase() ;
-	static bool run();
 	static TestCase* getActive();
 	static const __FlashStringHelper* getActiveTestType();
 	const __FlashStringHelper* getName() const;
+
+protected:
+	friend bool runAll(const __FlashStringHelper* tags);
+	friend bool filter(const __FlashStringHelper* tags);
+
 	virtual void onEnter() {}
 	virtual void onExit() {}
 
-protected:
+	static bool run();
+	static bool filter(const __FlashStringHelper* tags);
 
-	void setEntries(Entry* entries, int count)
+	void setEntries(Entry* entries, unsigned char count)
 	{
 		m_entries = entries;
 		m_numEntries = count;
@@ -198,7 +203,8 @@ private:
 	const __FlashStringHelper* m_tags;
 	TestCase* m_next;
 	Entry* m_entries;
-	int m_numEntries;
+	unsigned char m_numEntries;
+	bool m_enabled;
 
 	static TestCase* ms_first;
 	static TestCase* ms_last;
@@ -337,7 +343,7 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 	return true;
 }
 
-bool runAll();
+bool runAll(const __FlashStringHelper* tags);
 
 } // cz::mut
 

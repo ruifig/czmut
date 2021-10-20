@@ -94,6 +94,9 @@ namespace cz::mut::detail
 
 #if CZMUT_DESKTOP // On Visual studio, we need to use _itoa
 	#define CZMUT_itoa _itoa
+	#define strncmp_P strncmp
+	#define strnstr_P strncmp
+
 #else
 	#define CZMUT_itoa itoa
 #endif
@@ -198,46 +201,132 @@ TestCase::~TestCase()
 {
 }
 
+#define strcpy_P strcpy
+
+bool TestCase::filter(const __FlashStringHelper* tags_P)
+{
+	constexpr int tagsBufSize = 100;
+	char tags[tagsBufSize];
+	if (strlen(tags_P)+1> tagsBufSize)
+	{
+		CZMUT_LOG("Filter is too big. Either make it shorter, or increase internal buffer size where this message is.");
+		return false;
+	}
+
+	strcpy_P(tags, tags_P);
+
+	auto setAll = [](bool enabled)
+	{
+		TestCase* test = ms_first;
+		while (test)
+		{
+			test->m_enabled = enabled;
+			test = test->m_next;
+		}
+	};
+
+	if (!tags || strlen(tags) == 0)
+	{
+		setAll(true);
+		return true;
+	}
+	else
+	{
+		setAll(false);
+	}
+
+	while(*tags)
+	{
+		const char* p = strchr(tags, ',');
+		if (p == nullptr)
+		{
+			p = tags+strlen(tags);
+		}
+
+		int len = p-tags;
+
+		bool exclude = false;
+		if (tags[0] == '~')
+		{
+			tags++;
+			exclude = true;
+			len--;
+		}
+
+		TestCase* test = ms_first;
+		while (test)
+		{
+			if (strncmp_P(tags, reinterpret_cast<const char*>(test->m_tags), len) == 0)
+			{
+				if (!exclude)
+				{
+					test->m_enabled = true;
+				}
+			}
+			else
+			{
+				if (exclude)
+				{
+					test->m_enabled = true;
+				}
+			}
+
+			test = test->m_next;
+		}
+
+		tags = p+1;
+	}
+
+	return true;
+}
+
 bool TestCase::run()
 {
 	TestCase* test = ms_first;
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;
 
-	int testCount = 0;
+	int testsRan = 0;
+	int testsSkipped = 0;
 	int totalTestCalls = 0;
 
 	while (test)
 	{
-		for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
+		if (test->m_enabled)
 		{
-			ms_activeEntry = &test->m_entries[entryIndex];
-			ms_active = test;
-			testCount++;
-
-			// Print in two steps, because the second one is also PROGMEM
-			detail::logN(F("RUNNING: Test ["), test->m_name);
-			if (ms_active->getActiveTestType())
+			testsRan += test->m_numEntries;
+			for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
 			{
-				detail::logN(F("<"), ms_active->getActiveTestType(), F(">"));
-			}
-			detail::logN(F("]\n"));
+				ms_activeEntry = &test->m_entries[entryIndex];
+				ms_active = test;
 
-			while(ms_activeEntry->rootSection.tryExecute())
-			{
-				totalTestCalls++;
-				AutoSection sec(ms_activeEntry->rootSection);
-				test->onEnter();
-				ms_activeEntry->func();
-				test->onExit();
+				// Print in two steps, because the second one is also PROGMEM
+				detail::logN(F("RUNNING: Test ["), test->m_name);
+				if (ms_active->getActiveTestType())
+				{
+					detail::logN(F("<"), ms_active->getActiveTestType(), F(">"));
+				}
+				detail::logN(F("]\n"));
+
+				while(ms_activeEntry->rootSection.tryExecute())
+				{
+					totalTestCalls++;
+					AutoSection sec(ms_activeEntry->rootSection);
+					test->onEnter();
+					ms_activeEntry->func();
+					test->onExit();
+				}
 			}
+		}
+		else
+		{
+			testsSkipped += test->m_numEntries;
 		}
 
 		test = test->m_next;
 	}
 
-	detail::logFmt(F("FINISHED : %d tests ran\n"), testCount);
-	//detail::logFmt(F("%d test calls\n"), totalTestCalls);
+	detail::logFmt(F("FINISHED : %d tests ran. %d skipped\n"), testsRan, testsSkipped);
 
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;
@@ -374,8 +463,13 @@ void Section::onChildEnd(SectionState childState)
 	//printf("%*sSection::onChildEnd() - %s\n", m_level + 4, "", m_name);
 }
 
-bool runAll()
+bool runAll(const __FlashStringHelper* tags)
 {
+	if (!TestCase::filter(tags))
+	{
+		return false;
+	}
+
 	return TestCase::run();
 }
 

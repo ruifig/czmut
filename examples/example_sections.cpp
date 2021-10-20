@@ -1,6 +1,6 @@
 #include "../lib/czmut/src/czmut/czmut.h"
 
-TEST_CASE("A test case with sections", "[example_sections]")
+TEST_CASE("A test case with sections", "[example][sections]")
 {
 	static int dummy = 0;
 	dummy++;

@@ -1,6 +1,6 @@
 #include "../lib/czmut/src/czmut/czmut.h"
 
-TEST_CASE("Very simple test", "[basic]")
+TEST_CASE("Very simple test", "[example][basic]")
 {
 	CZMUT_LOG("Hello world!\n");
 	int dummy = 1;

@@ -9,10 +9,8 @@ void setup() {
 		; // wait for serial port to connect. Needed for native USB port only
 	}
 
-	Serial.println("Up and running...");
-	cz::mut::runAll();
-
-	Serial.println(__cplusplus);
+	Serial.println(F("Up and running..."));
+	cz::mut::runAll("[basic],[sections]");
 }
 
 void loop() {
