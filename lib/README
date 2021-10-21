@@ -1,46 +1,125 @@
 
-This directory is intended for project specific (private) libraries.
-PlatformIO will compile them to static libraries and link into executable file.
+# CZMUT (Crazygaze's Micro Unit Tests)
 
-The source code of each library should be placed in a an own separate directory
-("lib/your_library_name/[here are source files]").
+CZMUT is a small unit test framework inspired by Catch (https://github.com/catchorg), targetting embedded systems.
 
-For example, see a structure of the following two libraries `Foo` and `Bar`:
+# Features
 
-|--lib
-|  |
-|  |--Bar
-|  |  |--docs
-|  |  |--examples
-|  |  |--src
-|  |     |- Bar.c
-|  |     |- Bar.h
-|  |  |- library.json (optional, custom build options, etc) https://docs.platformio.org/page/librarymanager/config.html
-|  |
-|  |--Foo
-|  |  |- Foo.c
-|  |  |- Foo.h
-|  |
-|  |- README --> THIS FILE
-|
-|- platformio.ini
-|--src
-   |- main.c
+* Arduino support
+* Desktop support (Windows, Linux, etc), so you can develop code on desktop for faster iterations
+* Other platforms that have a minimal standard C library.
+	* None tested at the moment, but the code as very few dependencies, other than requiring a C++17 compiler
+* Small code and ram footprint.
+* No use of exceptions. Therefore, some more advanced things are not implemented.
+* No heap use
 
-and a contents of `src/main.c`:
-```
-#include <Foo.h>
-#include <Bar.h>
+# Documentation
 
-int main (void)
+Similar to Catch, tests are created with the `TEST_CASE` macro.
+
+```cpp
+int dummy = 1;
+TEST_CASE("My first test", "[example]")
 {
-  ...
+	// Test if dummy is 1, and stops the test if not
+	CHECK(dummy==1);
+}
+```
+
+In addition to test cases, you also have sections ( `SECTION` macro). This allows sharing setup and teardown code.
+Example:
+
+```cpp
+
+TEST_CASE("Test with setup and tear down", "[example]")
+{
+	// setup code
+	int a = 3;
+	int b = 10;
+
+	SECTION("Test addition")
+	{
+		b = 3;
+		CHECK((a+b)==6);
+	}
+
+	SECTION("Test multiplication")
+	{
+		CHECK((a*b)==30);
+	}
+
+	// .. any tear down code
+}
+```
+
+For each `SECTION`, the `TEST_CASE` is executed from the start. This means that each section is entered with a fresh setup. For example, even though the first section sets set `b` to `3`, the second section will run with a fresh setup and this see `a = 3` and `b = 10`.
+Each run through a test will execute one, and only one, leaf section.
+
+Sections can be nested, in which case the parent section can be entered multiple times, once for each leaf section. Nested sections are most useful when you want to share part of the setup.
+Example:
+
+```cpp
+TEST_CASE("Test with nested sections", "[example]")
+{
+	int a = 3;
+	int b = 10;
+
+	SECTION("Test 3 numbers")
+	{
+		int c = 3;
+
+		SECTION("Test Addition")
+		{
+			CHECK((a+b+c) == 16);
+		}
+
+		SECTION("Test subtraction")
+		{
+			CHECK((a-b-c) == -10);
+		}
+	}
+
+	SECTION("Test multiplication")
+	{
+		CHECK((a*b)==30);
+	}
 }
 
 ```
 
-PlatformIO Library Dependency Finder will find automatically dependent
-libraries scanning project source files.
+## Full API
 
-More information about PlatformIO Library Dependency Finder
-- https://docs.platformio.org/page/librarymanager/ldf.html
+### `TEST_CASE(Description, Tags)`
+
+Declares a new test. `Description` is used just for logging purposes. `Tags` is used for filtered when performing a run. See `cz::mut::run`.
+Tests automatically self-register, and there is nothing else you need to do to make the test available.
+
+### `SECTION(Description)`
+
+Declares a new test section. `Description` is used sonly for logging purposes.
+Sections can be nested.
+
+## `CZMUT_LOG(Fmt, ...)`
+
+Generic logging, similar to `printf`.
+Used internally, but also publicly available. `Fmt` is automatically wrapped as `F(Fmt)` on Arduino, to store it in flash memory.
+On Arduino (AVR platform), if one of the parameters is a string in flash memory, you can use the `%S` specifier, although it is not recommended, since that same code might not run on other platforms. This is because the AVR standard library reserves the `%S` specifier for this purpose.
+
+Example:
+
+```cpp
+// First string is in RAM. Second string is in PROGMEM
+`CZMUT_LOG("This is a log test: %s %S", "Hello", F("World!"));
+```
+
+If you want to log a mix if parameters where some are strings stored in flash, you should probably use `detail::
+
+
+Some differences from Catch
+===========================
+
+Due to its simplicity, there are some serious limitations compared to catch. Some that I can think of:
+
+* Check expressions are not decomposed. They are executed as-is, and if they fail, the full expressions is logged as a string
+* A failed check expression causes the entire run to halt straight away. This is intentional, since czmut doesn't use exceptions. 
+

@@ -9,7 +9,9 @@ void setup() {
 		; // wait for serial port to connect. Needed for native USB port only
 	}
 
-	Serial.println(F("Up and running..."));
+	CZMUT_LOG("Test %d %s %S %d\n", 10, "Hello", F("World!"), 20);
+
+	CZMUT_LOG("Up and running...");
 	cz::mut::run(F("[example]"));
 }
 

@@ -133,7 +133,6 @@ namespace cz::mut::detail
 		#endif
 		}
 
-
 		inline bool operator==(const FlashStringIterator& other) const { return m_pos == other.m_pos; }
 		inline bool operator!=(const FlashStringIterator& other) const { return m_pos != other.m_pos; }
 		inline int operator-(const FlashStringIterator& other) const { return m_pos - other.m_pos; }
