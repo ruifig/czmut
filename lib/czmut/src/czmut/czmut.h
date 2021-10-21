@@ -26,7 +26,7 @@
 	#define PROGMEM
 #endif
 
-#define CZMUT_USE_OWN_INITIALIZER_LIST 1
+#define CZMUT_USE_OWN_INITIALIZER_LIST 0
 
 //
 // From what CZMUT uses of the STL, initializer_list is the tricky one, because it needs to be
@@ -45,6 +45,7 @@
 #include "./helpers/ministd.h"
 
 #include <stdio.h>
+#include <string.h>
 #include "./helpers/vaargs_to_string_array.h"
 
 namespace cz::mut::detail
@@ -79,6 +80,71 @@ namespace cz::mut::detail
 		log(ministd::forward<A0>(a0));
 		logN(ministd::forward<AN>(aN)...);
 	}
+
+	
+	//
+	// Helper to make it easier to manipulate strings in flash memory
+	// 
+	struct FlashStringIterator
+	{
+		explicit FlashStringIterator(const __FlashStringHelper* pos)
+			: m_pos(pos)
+		{
+		}
+
+		inline FlashStringIterator& operator++()
+		{
+			m_pos++;
+			return *this;
+		}
+
+		inline FlashStringIterator& operator--()
+		{
+			m_pos--;
+			return *this;
+		}
+
+		inline char operator*() const
+		{
+		#if defined(ARDUINO)
+			return pgm_read_byte(m_pos);
+		#else
+			return *m_pos;
+		#endif
+		}
+
+		size_t len() const
+		{
+		#if defined(ARDUINO)
+			return strlen_P(m_pos);
+		#else
+			return strlen(m_pos);
+		#endif
+		}
+
+		// Find the first occurrence of the specified character, or null if not found
+		FlashStringIterator findchar(char ch, size_t pos = 0) const
+		{
+		#if defined(ARDUINO)
+			return FlashStringIterator(strchr_P(m_pos + pos, ch));
+		#else
+			return FlashStringIterator(strchr(m_pos + pos, ch));
+		#endif
+		}
+
+		inline int operator-(const FlashStringIterator& other) const { return m_pos - other.m_pos; }
+		inline FlashStringIterator operator+(int val) const { return FlashStringIterator(m_pos+val); }
+		inline FlashStringIterator operator-(int val) const { return FlashStringIterator(m_pos-val); }
+		inline FlashStringIterator operator+(size_t val) const { return FlashStringIterator(m_pos+val); }
+		inline FlashStringIterator operator-(size_t val) const { return FlashStringIterator(m_pos-val); }
+		inline const char* c_str() const { return m_pos; }
+		explicit inline operator bool() const { return m_pos ? true : false; }
+		bool operator<(const FlashStringIterator& other) { return m_pos < other.m_pos; }
+		bool operator>(const FlashStringIterator& other) { return m_pos > other.m_pos; }
+
+	private:
+		const char* m_pos;
+	};
 
 } // cz::mut::detail
 
@@ -170,13 +236,14 @@ public:
 
 protected:
 	friend bool runAll(const __FlashStringHelper* tags);
-	friend bool filter(const __FlashStringHelper* tags);
+	friend bool filter(detail::FlashStringIterator tags);
 
 	virtual void onEnter() {}
 	virtual void onExit() {}
 
+	bool hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const;
 	static bool run();
-	static bool filter(const __FlashStringHelper* tags);
+	static bool filter(detail::FlashStringIterator tags);
 
 	void setEntries(Entry* entries, unsigned char count)
 	{

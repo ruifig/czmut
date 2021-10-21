@@ -1,8 +1,8 @@
 #include "./czmut.h"
-#include <stdio.h>
-#include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
+#include <string>
 
 // Used internally only for own library development
 #define CZMUT_ASSERT(expr) \
@@ -94,9 +94,6 @@ namespace cz::mut::detail
 
 #if CZMUT_DESKTOP // On Visual studio, we need to use _itoa
 	#define CZMUT_itoa _itoa
-	#define strlen_P strlen
-	#define memcpy_P memcpy
-	#define pgm_read_byte(address_short) *address_short
 #else
 	#define CZMUT_itoa itoa
 #endif
@@ -131,6 +128,34 @@ namespace cz::mut::detail
 		char buf[bufSize];
 		CZMUT_itoa(val, buf, 10);
 		logStr(buf);
+	}
+
+	//
+	// Compares two tags in progmem space
+	// Instead of being specified as NULL terminated strings, hey are specified as ranges, so they can be part of other strings
+	//
+	bool compareStrings_P(FlashStringIterator aStart, FlashStringIterator aEnd, FlashStringIterator bStart, FlashStringIterator bEnd)
+	{
+		std::string a(aStart.c_str(), aEnd.c_str());
+		std::string b(bStart.c_str(), bEnd.c_str());
+
+		int todo = aEnd - aStart;
+		if (todo != (bEnd - bStart)) // if sizes don't match, well, then can't match
+		{
+			return false;
+		}
+
+		while(todo--)
+		{
+			if (*aStart != *bStart)
+			{
+				return false;
+			}
+			++aStart;
+			++bStart;
+		}
+
+		return true;
 	}
 
 } // cz::mut::detail
@@ -200,12 +225,7 @@ TestCase::TestCase(const __FlashStringHelper* name, const __FlashStringHelper* t
 TestCase::~TestCase()
 {
 }
-
-//
-// NOTE:
-// Both the parameter and test tags are copied to the stack for processing.
-// This is intentional to make this code easier/shorter
-bool TestCase::filter(const __FlashStringHelper* tags_P)
+bool TestCase::filter(detail::FlashStringIterator tags)
 {
 	auto setAll = [](bool enabled)
 	{
@@ -217,7 +237,7 @@ bool TestCase::filter(const __FlashStringHelper* tags_P)
 		}
 	};
 
-	if (!tags_P || pgm_read_byte(tags_P) == 0)
+	if (!tags || *tags == 0)
 	{
 		setAll(true);
 		return true;
@@ -227,65 +247,77 @@ bool TestCase::filter(const __FlashStringHelper* tags_P)
 		setAll(false);
 	}
 
-	constexpr int tagsBufSize = 50;
-	auto copyToStack = [tagsBufSize](char* dest, const __FlashStringHelper* src)
+	//
+	// A token is composed of 1 or more tags, which we use to do a "AND". E.g, a token of "[foo][bar]" means
+	// the test needs to have a tag [foo] AND [bar] to be enabled
+	//
+	detail::FlashStringIterator tokenStart = tags;
+	detail::FlashStringIterator tokenEnd = tokenStart.findchar(',');
+	while (*tokenStart)
 	{
-		int len = strlen_P(reinterpret_cast<const char*>(src));
-		if (len+1> tagsBufSize)
+		if (!tokenEnd)
 		{
-			CZMUT_LOG("Filter or test tags is too big. Either make it shorter, or increase internal buffer size where this message is.");
-			return false;
+			tokenEnd = tokenStart + tokenStart.len();
 		}
-		memcpy_P(dest, src, len+1);
-		return true;
-	};
 
-	// Copy tags parameter to stack
-	char tags[tagsBufSize];
-	if (!copyToStack(tags, tags_P))
-	{
-		return false;
-	}
+		std::string token(tokenStart.c_str(), tokenEnd.c_str());
 
-	char* token = strtok(tags, ",");
-	while(token)
-	{
 		bool exclude = false;
-		if (token[0] == '~')
+		if (*tokenStart == '~')
 		{
-			token++;
 			exclude = true;
+			++tokenStart;
 		}
 
 		TestCase* test = ms_first;
 		while (test)
 		{
-			// Copy test tags to stack
-			char testTags[tagsBufSize];
-			if (!copyToStack(testTags, test->m_tags))
+
+			//
+			// Iterate through all the individual tags in the token, and compare with the test tags
+			//
+			detail::FlashStringIterator tagStart = tokenStart;
+			detail::FlashStringIterator tagEnd = tagStart.findchar('[', 1);
+			bool hasAllTags = true;
+			while (tagStart < tokenEnd)
 			{
-				return false;
+				if (!tagEnd)
+				{
+					tagEnd = tagStart + tagStart.len();
+				}
+				else if (tagEnd > tokenEnd)
+				{
+					tagEnd = tokenEnd;
+				}
+
+				std::string tag(tagStart.c_str(), tagEnd.c_str());
+
+				if (*tagStart != '[' || *(tagEnd-1) != ']')
+				{
+					CZMUT_LOG("Malformed filter");
+					return false;
+				}
+
+				if (!test->hasTag(tagStart, tagEnd))
+				{
+					hasAllTags = false;
+					break;
+				}
+
+				tagStart = tagEnd;
+				tagEnd = tagStart.findchar('[', 1);
 			}
 
-			if (strstr(testTags, token))
+			if ((hasAllTags && !exclude) || (!hasAllTags && exclude))
 			{
-				if (!exclude)
-				{
-					test->m_enabled = true;
-				}
-			}
-			else
-			{
-				if (exclude)
-				{
-					test->m_enabled = true;
-				}
+				test->m_enabled = true;
 			}
 
 			test = test->m_next;
 		}
 
-		token = strtok(nullptr, ",");
+		tokenStart = tokenEnd + 1;
+		tokenEnd = tokenStart.findchar(',');
 	}
 
 	return true;
@@ -317,7 +349,7 @@ bool TestCase::run()
 				{
 					detail::logN(F("<"), ms_active->getActiveTestType(), F(">"));
 				}
-				detail::logN(F("]\n"));
+				detail::logN(F("], tags="), test->m_tags, F("\n"));
 
 				while(ms_activeEntry->rootSection.tryExecute())
 				{
@@ -357,6 +389,42 @@ const __FlashStringHelper* TestCase::getActiveTestType()
 const __FlashStringHelper* TestCase::getName() const
 {
 	return m_name;
+}
+
+bool TestCase::hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const
+{
+	std::string tag(tagStart.c_str(), tagEnd.c_str());
+
+	//
+	// Iterate through all the test tags and check if we have the specified tag
+	// 
+	detail::FlashStringIterator testTagStart = detail::FlashStringIterator(m_tags);
+	detail::FlashStringIterator testTagEnd = testTagStart.findchar('[', 1);
+	while (*testTagStart)
+	{
+		if (!testTagEnd)
+		{
+			testTagEnd = testTagStart + testTagStart.len();
+
+			if (*(testTagEnd-1) != ']')
+			{
+				detail::logN(F("Malformed tag: "), testTagStart.c_str());
+				return false;
+			}
+		}
+
+		//std::string testTag(testTagStart, testTagEnd);
+
+		if (detail::compareStrings_P(testTagStart, testTagEnd, tagStart, tagEnd))
+		{
+			return true;
+		}
+
+		testTagStart = testTagEnd;
+		testTagEnd = testTagStart.findchar('[', 1);
+	}
+
+	return false;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -476,7 +544,7 @@ void Section::onChildEnd(SectionState childState)
 
 bool runAll(const __FlashStringHelper* tags)
 {
-	if (!TestCase::filter(tags))
+	if (!TestCase::filter(detail::FlashStringIterator(tags)))
 	{
 		return false;
 	}
