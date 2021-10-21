@@ -347,8 +347,7 @@ namespace cz::mut::detail
 		{
 			setEntries(m_myEntries, 1);
 		}
-		
-		virtual ~SingleEntryTestCase() {}
+
 	private:
 		Entry m_myEntries[1];
 	};
