@@ -5,6 +5,7 @@ struct Pair
 {
 	A a;
 	B b;
+	Pair(int a) : a(a), b(0) {}
 };
 
 namespace
@@ -19,12 +20,17 @@ namespace
 		CZMUT_LOG("printing int %d\n", value);
 	}
 
+	void printValue(Pair<int, char> value)
+	{
+		CZMUT_LOG("printing Pair<int,char> %d,%d\n", value.a, (int)value.b);
+	}
+
 }
 
 /*
 This test is templated and will be called for types "char" and "int".
 */
-TEMPLATED_TEST_CASE("A templated test case", "[example][templated]", char, int)
+TEMPLATED_TEST_CASE("A templated test case", "[example][templated]", char, int, Pair<int, char>)
 {
 	// TestType is the type the test case is running for.
 	TestType dummy = 10;

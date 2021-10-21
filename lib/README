@@ -89,6 +89,8 @@ TEST_CASE("Test with nested sections", "[example]")
 
 ## Full API
 
+Public API is available in the `cz::mut` namespace, while internals are in `cz::mut::detail`. Ideally you should NOT directly use anything from `cz::mut::detail`
+
 ### `TEST_CASE(Description, Tags)`
 
 Declares a new test. `Description` is used just for logging purposes. `Tags` is used for filtered when performing a run. See `cz::mut::run`.
@@ -103,6 +105,7 @@ Sections can be nested.
 
 Generic logging, similar to `printf`.
 Used internally, but also publicly available. `Fmt` is automatically wrapped as `F(Fmt)` on Arduino, to store it in flash memory.
+
 On Arduino (AVR platform), if one of the parameters is a string in flash memory, you can use the `%S` specifier, although it is not recommended, since that same code might not run on other platforms. This is because the AVR standard library reserves the `%S` specifier for this purpose.
 
 Example:
@@ -114,6 +117,35 @@ Example:
 
 If you want to log a mix if parameters where some are strings stored in flash, you should probably use `cz::mut::logN`.
 
+### `flushlog()`
+
+Flushes the log system. This is mostly useful on the Arduino to flush the serial, to make sure you see a particular log before executing the  rest of the code.
+
+### `logN(...)`
+
+Variadic template function that allows printing several arguments in one go.
+Contrary to `CZMUT_LOG`, this does not provide a Format string. It's mostly useful if you need to mix several types of arguments including strings in PROGMEM.
+Example:
+
+```cpp
+int a = 10; int b=20;
+const char* c = "Hello ";
+cz::mut::logN(c, F("World!"), a, F(","), b);
+```
+
+This will log: `Hello World!10,20`
+
+### `getFilename(const char*)`
+
+Strips the path part of the specified file.
+Mostly useful to log the current file excluding the folder(s) part.
+Example:
+
+	`CZMUT_LOG
+	* Given a file full path, such as given by __FILE__, it will strip the folders and return just the file name
+	* Useful to use directly with __FILE__ for logging purposes to reduce noise by not displaying folders.
+	*/
+	const char* getFilename(const char* file);
 
 
 

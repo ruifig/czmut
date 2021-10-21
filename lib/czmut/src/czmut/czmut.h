@@ -60,6 +60,16 @@
 		CZMUT_CONCATENATE(str,__LINE__)
 #endif
 
+namespace cz::mut
+{
+	/*
+	* Run tests
+	* \param tags
+	* This allows filtering what tests to run. If empty or null, all test will run. Check the documentation for more details
+	*/
+	bool run(const __FlashStringHelper* tags = nullptr);
+}
+
 namespace cz::mut::detail
 {
 	void debugbreak();
@@ -79,6 +89,11 @@ namespace cz::mut::detail
 	void log(unsigned int val);
 	void log(long val);
 	void log(unsigned long val);
+
+	// NOTE: No need for a version of logFailure that takes "const char* expr_str".
+	//	* On Arduino, we'll always use __FlashStringHelper
+	//	* On other platforms, __FlashStringHelper is "char", so no need for anything else
+	void logFailure(const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str);
 
 	//
 	// Helper to make it easier to manipulate strings in flash memory
@@ -121,8 +136,11 @@ namespace cz::mut::detail
 		#endif
 		}
 
-		// Find the first occurrence of the specified character, or null if not found
-		FlashStringIterator findchar(char ch, size_t pos = 0) const
+		/**
+		 * Find the first occurrence of the specified character.
+		 * Returns an iterator to the character, or a null iterator if not found.
+		 */
+		FlashStringIterator findChar(char ch, size_t pos = 0) const
 		{
 		#if defined(ARDUINO)
 			return FlashStringIterator(strchr_P(m_pos + pos, ch));
@@ -130,6 +148,20 @@ namespace cz::mut::detail
 			return FlashStringIterator(strchr(m_pos + pos, ch));
 		#endif
 		}
+
+		/**
+		 * Find the last occurrence of the specified character.
+		 * Returns an iterator to the character, or a null iterator if not found.
+		 */
+		FlashStringIterator findLastChar(char ch) const
+		{
+		#if defined(ARDUINO)
+			return FlashStringIterator(strrchr_P(m_pos, ch));
+		#else
+			return FlashStringIterator(strrchr(m_pos, ch));
+		#endif
+		}
+
 
 		inline bool operator==(const FlashStringIterator& other) const { return m_pos == other.m_pos; }
 		inline bool operator!=(const FlashStringIterator& other) const { return m_pos != other.m_pos; }
@@ -139,6 +171,7 @@ namespace cz::mut::detail
 		inline FlashStringIterator operator+(size_t val) const { return FlashStringIterator(m_pos+val); }
 		inline FlashStringIterator operator-(size_t val) const { return FlashStringIterator(m_pos-val); }
 		inline const char* c_str() const { return m_pos; }
+		inline const __FlashStringHelper* data() const { return reinterpret_cast<const __FlashStringHelper*>(m_pos); }
 		explicit inline operator bool() const { return m_pos ? true : false; }
 		bool operator<(const FlashStringIterator& other) { return m_pos < other.m_pos; }
 		bool operator>(const FlashStringIterator& other) { return m_pos > other.m_pos; }
@@ -152,7 +185,6 @@ namespace cz::mut::detail
 	#endif
 		const char* m_pos;
 	};
-
 
 	//
 	// Allows indexing an initializer list, and counting elements
@@ -175,60 +207,6 @@ namespace cz::mut::detail
 		}
 	};
 
-} // cz::mut::detail
-
-namespace cz::mut
-{
-	/**
-	 * Flogs the log.
-	 * This is useful on the arduino, whenever you want to make sure some logging is transmitted over the serial before executing the next instruction.
-	 */
-	void flushlog();
-
-	template<typename A0>
-	void logN(A0&& a0)
-	{
-		detail::log(ministd::forward<A0>(a0));
-	}
-
-	/**
-	 * Logs any number of passed parameters.
-	 * Note that this doesn't support any formating, but makes it easier to log something when you want to mix in strings stored in flash
-	 *
-	 * int a = 10; int b=20;
-	 * const char* c = "Hello ";
-	 * cz::mut::logN(c, F("World!"), a, F(","), b);
-	 *
-	 * This will log: Hello World!10,20
-	 *
-	 */
-	template<typename A0, typename... AN>
-	void logN(A0&& a0, AN&&... aN)
-	{
-		detail::log(ministd::forward<A0>(a0));
-		logN(ministd::forward<AN>(aN)...);
-	}
-
-	/**
-	* Given a file full path, such as given by __FILE__, it will strip the folders and return just the file name
-	* Useful to use directly with __FILE__ for logging purposes to reduce noise by not displaying folders.
-	*/
-	const char* getFilename(const char* file);
-
-
-	// NOTE: No need for a version of logFailure that takes "const char* expr_str".
-	//	* On Arduino, we'll always use __FlashStringHelper
-	//	* On other platforms, __FlashStringHelper is "char", so no need for anything else
-	void logFailure(const char* file, int line, const __FlashStringHelper* expr_str);
-
-	enum class SectionState
-	{
-		Uninitialized,
-		Ready,
-		Running,
-		Finished
-	};
-
 	class Section
 	{
 	public:
@@ -243,16 +221,47 @@ namespace cz::mut
 
 	private:
 
+		enum class State : unsigned char
+		{
+			Uninitialized,
+			Ready,
+			Running,
+			Finished
+		};
+
 		void onChildStart();
-		void onChildEnd(SectionState childState);
+		void onChildEnd(State childState);
 
 		const __FlashStringHelper* m_name;
 		int m_level = 0;
 		bool m_childExecuted = false;
 		bool m_hasActiveChild = false;
-		SectionState m_state = SectionState::Uninitialized;
+		State m_state = State::Uninitialized;
 		Section* m_parent = nullptr;
 		static Section* ms_active;
+	};
+
+	class AutoSection
+	{
+	public:
+		AutoSection(Section& section)
+			: m_section(section)
+		{
+			m_section.start();
+		}
+
+		~AutoSection()
+		{
+			m_section.end();
+		}
+
+		explicit operator bool()
+		{
+			return m_section.tryExecute();
+		}
+
+	private:
+		Section& m_section;
 	};
 
 	class TestCase
@@ -285,8 +294,7 @@ namespace cz::mut
 		const __FlashStringHelper* getName() const;
 
 	protected:
-		friend bool run(const __FlashStringHelper* tags);
-		friend bool filter(detail::FlashStringIterator tags);
+		friend bool cz::mut::run(const __FlashStringHelper* tags);
 
 		virtual void onEnter() {}
 		virtual void onExit() {}
@@ -345,29 +353,48 @@ namespace cz::mut
 		Entry m_myEntries[1];
 	};
 
-	class AutoSection
+} // cz::mut::detail
+
+namespace cz::mut
+{
+	/**
+	 * Flogs the log.
+	 * This is useful on the arduino, whenever you want to make sure some logging is transmitted over the serial before executing the next instruction.
+	 */
+	void flushlog();
+
+	template<typename A0>
+	void logN(A0&& a0)
 	{
-	public:
-		AutoSection(Section& section)
-			: m_section(section)
-		{
-			m_section.start();
-		}
+		detail::log(ministd::forward<A0>(a0));
+	}
 
-		~AutoSection()
-		{
-			m_section.end();
-		}
+	/**
+	 * Logs any number of passed parameters.
+	 * Note that this doesn't support any formating, but makes it easier to log something when you want to mix in strings stored in flash
+	 *
+	 * int a = 10; int b=20;
+	 * const char* c = "Hello ";
+	 * cz::mut::logN(c, F("World!"), a, F(","), b);
+	 *
+	 * This will log: Hello World!10,20
+	 *
+	 */
+	template<typename A0, typename... AN>
+	void logN(A0&& a0, AN&&... aN)
+	{
+		detail::log(ministd::forward<A0>(a0));
+		logN(ministd::forward<AN>(aN)...);
+	}
 
-		explicit operator bool()
-		{
-			return m_section.tryExecute();
-		}
-
-	private:
-		Section& m_section;
-	};
-
+	/**
+	* Given a file full path, such as given by __FILE__, it will strip the folders and return just the file name
+	* Useful to use directly with __FILE__ for logging purposes to reduce noise by not displaying folders.
+	*/
+	const char* getFilename(const char* file);
+	#if defined(ARDUINO)
+	const __FlashStringHelper* getFilename(const __FlashStringHelper* file);
+	#endif
 
 	// a function, with the short name _ (underscore) for creating 
 	// InitializerListHelper out of a "regular" std::initializer_list
@@ -376,77 +403,75 @@ namespace cz::mut
 		return detail::InitializerListHelper<T>(list);
 	}
 
-template<typename A, typename B>
-bool compare(A a, B b);
+	template<typename A, typename B>
+	bool equals(A a, B b);
 
-template<typename A, typename B>
-bool compare(std::initializer_list<A> a, std::initializer_list<B> b)
-{
-	size_t a_count = _(a).size();
-	size_t b_count = _(b).size();
-	
-	if (a_count != b_count)
+	template<typename A, typename B>
+	bool equals(std::initializer_list<A> a, std::initializer_list<B> b)
 	{
-		return false;
-	}
+		size_t a_count = _(a).size();
+		size_t b_count = _(b).size();
 
-	for (size_t idx = 0; idx < a_count; idx++)
-	{
-		if (_(a)[idx] != _(b)[idx])
+		if (a_count != b_count)
 		{
 			return false;
 		}
+
+		for (size_t idx = 0; idx < a_count; idx++)
+		{
+			if (_(a)[idx] != _(b)[idx])
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
-	return true;
-}
-
-template<typename A, typename B>
-bool compare(const A* a, size_t a_count, std::initializer_list<B> b)
-{
-	size_t b_count = _(b).size();
-	
-	if (a_count != b_count)
+	template<typename A, typename B>
+	bool equals(const A* a, size_t a_count, std::initializer_list<B> b)
 	{
-		return false;
-	}
+		size_t b_count = _(b).size();
 
-	for (size_t idx = 0; idx < a_count; idx++)
-	{
-		if (a[idx] != _(b)[idx])
+		if (a_count != b_count)
 		{
 			return false;
 		}
+
+		for (size_t idx = 0; idx < a_count; idx++)
+		{
+			if (a[idx] != _(b)[idx])
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 
-	return true;
-}
-
-template<typename A, typename B>
-bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
-{
-	if (a_count != b_count)
+	template<typename A, typename B>
+	bool equals(const A* a, size_t a_count, const B* b, size_t b_count)
 	{
-		return false;
-	}
-
-	for (int idx = 0; idx < a_count; idx++)
-	{
-		if (a[idx] != b[idx])
+		if (a_count != b_count)
 		{
 			return false;
 		}
+
+		for (int idx = 0; idx < a_count; idx++)
+		{
+			if (a[idx] != b[idx])
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
-
-	return true;
-}
-
-bool run(const __FlashStringHelper* tags = nullptr);
 
 } // cz::mut
 
 #define INTERNAL_SECTION(Description, SectionName) \
-	if (static cz::mut::Section SectionName(F(Description)); auto CZMUT_ANONYMOUS_VARIABLE(CZMUT_autosection) = cz::mut::AutoSection(SectionName))
+	if (static cz::mut::detail::Section SectionName(F(Description)); auto CZMUT_ANONYMOUS_VARIABLE(CZMUT_autosection) = cz::mut::detail::AutoSection(SectionName))
 
 #define INTERNAL_TEST_CASE(TestClass, Description, Tags, TestFunction) \
 	static void TestFunction(); \
@@ -485,18 +510,18 @@ bool run(const __FlashStringHelper* tags = nullptr);
 #define INTERNAL_CHECK(expr, file, line) \
 	if (!(expr)) \
 	{ \
-		cz::mut::logFailure(file, line, F(#expr)); \
+		cz::mut::detail::logFailure(file, line, F(#expr)); \
 		cz::mut::detail::debugbreak(); \
 	}
 
 
-#define TEST_CASE(Description, Tags) INTERNAL_TEST_CASE(cz::mut::SingleEntryTestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc))
+#define TEST_CASE(Description, Tags) INTERNAL_TEST_CASE(cz::mut::detail::SingleEntryTestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc))
 
 #define TEMPLATED_TEST_CASE(Description, Tags, ...)  \
-	INTERNAL_TEMPLATED_TEST_CASE(CZMUT_ANONYMOUS_VARIABLE(CZMUT_TemplateTestCase), cz::mut::TestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc), __VA_ARGS__)
+	INTERNAL_TEMPLATED_TEST_CASE(CZMUT_ANONYMOUS_VARIABLE(CZMUT_TemplateTestCase), cz::mut::detail::TestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc), __VA_ARGS__)
 	
 /**
- * Allows specifying a custom class derived from cz::mut::TestCase
+ * Allows specifying a custom class derived from cz::mut::detail::TestCase
  * This allows for example to have custom code on test case entry and exit by overriding TestCase::onEnter/TestCase::onExit
  */
 #define CUSTOM_TEST_CASE(TestClass, Description, Tags) \
@@ -507,6 +532,6 @@ bool run(const __FlashStringHelper* tags = nullptr);
 
 #define SECTION(Description) INTERNAL_SECTION(Description, CZMUT_ANONYMOUS_VARIABLE(CZMUT_section))
 
-#define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(__FILE__), __LINE__)
+#define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(F(__FILE__)), __LINE__)
 
 #define CZMUT_LOG(fmt,...) cz::mut::detail::logFmt(F(fmt), ## __VA_ARGS__)
