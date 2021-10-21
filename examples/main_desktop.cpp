@@ -11,5 +11,5 @@ TEST_CASE("Der Derp ", "[Foo][Bar]")
 
 int main()
 {
-	return cz::mut::runAll(F("~[basic][example],~[basic]")) ? 0 : 1;
+	return cz::mut::runAll(F("[example],~[basic]")) ? 0 : 1;
 }

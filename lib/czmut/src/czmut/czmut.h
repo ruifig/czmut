@@ -85,10 +85,11 @@ namespace cz::mut::detail
 	//
 	// Helper to make it easier to manipulate strings in flash memory
 	// 
-	struct FlashStringIterator
+	class FlashStringIterator
 	{
+		public:
 		explicit FlashStringIterator(const __FlashStringHelper* pos)
-			: m_pos(pos)
+			: m_pos(reinterpret_cast<const char*>(pos))
 		{
 		}
 
@@ -132,6 +133,9 @@ namespace cz::mut::detail
 		#endif
 		}
 
+
+		inline bool operator==(const FlashStringIterator& other) const { return m_pos == other.m_pos; }
+		inline bool operator!=(const FlashStringIterator& other) const { return m_pos != other.m_pos; }
 		inline int operator-(const FlashStringIterator& other) const { return m_pos - other.m_pos; }
 		inline FlashStringIterator operator+(int val) const { return FlashStringIterator(m_pos+val); }
 		inline FlashStringIterator operator-(int val) const { return FlashStringIterator(m_pos-val); }
@@ -143,6 +147,12 @@ namespace cz::mut::detail
 		bool operator>(const FlashStringIterator& other) { return m_pos > other.m_pos; }
 
 	private:
+	#if defined(ARDUINO)
+		explicit FlashStringIterator(const char* pos_P)
+			: m_pos(pos_P)
+		{
+		}
+	#endif
 		const char* m_pos;
 	};
 

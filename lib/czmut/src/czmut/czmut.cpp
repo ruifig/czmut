@@ -2,7 +2,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include <string>
+// Setting this to 1 enabled some extra logging during the filter processing
+// Only useful for internal development.
+#define CZMUT_DEBUG_FILTER 0
 
 // Used internally only for own library development
 #define CZMUT_ASSERT(expr) \
@@ -130,15 +132,34 @@ namespace cz::mut::detail
 		logStr(buf);
 	}
 
+	void logRange(FlashStringIterator start, FlashStringIterator end)
+	{
+		while(start!=end)
+		{
+			#if defined(ARDUINO)
+				Serial.print(*start);
+			#else
+				printf("%c", *start);
+			#endif
+			++start;
+		}
+	}
+
+	void logRange(const __FlashStringHelper* name, FlashStringIterator start, FlashStringIterator end)
+	{
+		detail::logN(name);
+		detail::logFmt(F("(%u->%u), Len=%u:"), size_t(start.c_str()), size_t(end.c_str()), end-start);
+		logRange(start, end);
+		Serial.println(":");
+	}
+
+
 	//
 	// Compares two tags in progmem space
 	// Instead of being specified as NULL terminated strings, hey are specified as ranges, so they can be part of other strings
 	//
 	bool compareStrings_P(FlashStringIterator aStart, FlashStringIterator aEnd, FlashStringIterator bStart, FlashStringIterator bEnd)
 	{
-		std::string a(aStart.c_str(), aEnd.c_str());
-		std::string b(bStart.c_str(), bEnd.c_str());
-
 		int todo = aEnd - aStart;
 		if (todo != (bEnd - bStart)) // if sizes don't match, well, then can't match
 		{
@@ -253,14 +274,22 @@ bool TestCase::filter(detail::FlashStringIterator tags)
 	//
 	detail::FlashStringIterator tokenStart = tags;
 	detail::FlashStringIterator tokenEnd = tokenStart.findchar(',');
-	while (*tokenStart)
+	detail::FlashStringIterator tagsEnd = tags + tags.len();
+
+	#if CZMUT_DEBUG_FILTER
+	detail::logRange(F("Filter"), tags, tagsEnd);
+	#endif
+
+	while (tokenStart < tagsEnd)
 	{
 		if (!tokenEnd)
 		{
-			tokenEnd = tokenStart + tokenStart.len();
+			tokenEnd = tagsEnd;
 		}
 
-		std::string token(tokenStart.c_str(), tokenEnd.c_str());
+		#if CZMUT_DEBUG_FILTER
+		detail::logRange(F("    Token"), tokenStart, tokenEnd );
+		#endif
 
 		bool exclude = false;
 		if (*tokenStart == '~')
@@ -290,7 +319,10 @@ bool TestCase::filter(detail::FlashStringIterator tags)
 					tagEnd = tokenEnd;
 				}
 
-				std::string tag(tagStart.c_str(), tagEnd.c_str());
+
+				#if CZMUT_DEBUG_FILTER
+				detail::logRange(F("        tag"), tagStart, tagEnd);
+				#endif
 
 				if (*tagStart != '[' || *(tagEnd-1) != ']')
 				{
@@ -393,11 +425,15 @@ const __FlashStringHelper* TestCase::getName() const
 
 bool TestCase::hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const
 {
-	std::string tag(tagStart.c_str(), tagEnd.c_str());
-
 	//
 	// Iterate through all the test tags and check if we have the specified tag
 	// 
+	#if CZMUT_DEBUG_FILTER
+	detail::logN(F("            Checking if Test '"), m_name, F("'(tags="), m_tags, F(") has tag "));
+	detail::logRange(tagStart, tagEnd);
+	detail::logN(F("\n"));
+	#endif
+
 	detail::FlashStringIterator testTagStart = detail::FlashStringIterator(m_tags);
 	detail::FlashStringIterator testTagEnd = testTagStart.findchar('[', 1);
 	while (*testTagStart)
@@ -413,7 +449,9 @@ bool TestCase::hasTag(detail::FlashStringIterator tagStart, detail::FlashStringI
 			}
 		}
 
-		//std::string testTag(testTagStart, testTagEnd);
+		#if CZMUT_DEBUG_FILTER
+		detail::logRange(F("                testTag"), testTagStart, testTagEnd);
+		#endif
 
 		if (detail::compareStrings_P(testTagStart, testTagEnd, tagStart, tagEnd))
 		{
