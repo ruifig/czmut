@@ -245,7 +245,7 @@ public:
 	const __FlashStringHelper* getName() const;
 
 protected:
-	friend bool runAll(const __FlashStringHelper* tags);
+	friend bool run(const __FlashStringHelper* tags);
 	friend bool filter(detail::FlashStringIterator tags);
 
 	virtual void onEnter() {}
@@ -420,7 +420,7 @@ bool compare(const A* a, size_t a_count, const B* b, size_t b_count)
 	return true;
 }
 
-bool runAll(const __FlashStringHelper* tags);
+bool run(const __FlashStringHelper* tags = nullptr);
 
 } // cz::mut
 

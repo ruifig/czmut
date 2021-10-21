@@ -580,7 +580,7 @@ void Section::onChildEnd(SectionState childState)
 	//printf("%*sSection::onChildEnd() - %s\n", m_level + 4, "", m_name);
 }
 
-bool runAll(const __FlashStringHelper* tags)
+bool run(const __FlashStringHelper* tags)
 {
 	if (!TestCase::filter(detail::FlashStringIterator(tags)))
 	{

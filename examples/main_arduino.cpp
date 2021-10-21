@@ -10,7 +10,7 @@ void setup() {
 	}
 
 	Serial.println(F("Up and running..."));
-	cz::mut::runAll(F("[example]"));
+	cz::mut::run(F("[example]"));
 }
 
 void loop() {
