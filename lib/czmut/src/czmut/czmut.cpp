@@ -150,7 +150,7 @@ namespace cz::mut::detail
 		detail::logN(name);
 		detail::logFmt(F("(%u->%u), Len=%u:"), size_t(start.c_str()), size_t(end.c_str()), end-start);
 		logRange(start, end);
-		Serial.println(":");
+		detail::logN(F(":"));
 	}
 
 
