@@ -12,6 +12,12 @@ void setup() {
 	CZMUT_LOG("Test %d %s %S %d\n", 10, "Hello", F("World!"), 20);
 
 	CZMUT_LOG("Up and running...");
+
+	int a = 10;
+	int b = 20;
+	const char* c = "Hello ";
+
+	cz::mut::logN(c, F("World!"), a, F(","), b);
 	cz::mut::run(F("[example]"));
 }
 

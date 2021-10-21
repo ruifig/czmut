@@ -48,6 +48,18 @@
 #include <string.h>
 #include "./helpers/vaargs_to_string_array.h"
 
+#define CZMUT_CONCATENATE_IMPL(s1,s2) s1##s2
+#define CZMUT_CONCATENATE(s1,s2) CZMUT_CONCATENATE_IMPL(s1,s2)
+
+// Note: __COUNTER__ Expands to an integer starting with 0 and incrementing by 1 every time it is used in a source file or included headers of the source file.
+#ifdef __COUNTER__
+	#define CZMUT_ANONYMOUS_VARIABLE(str) \
+		CZMUT_CONCATENATE(str,__COUNTER__)
+#else
+	#define ANONYMOUS_VARIABLE(str) \
+		CZMUT_CONCATENATE(str,__LINE__)
+#endif
+
 namespace cz::mut::detail
 {
 	void debugbreak();
@@ -68,20 +80,6 @@ namespace cz::mut::detail
 	void log(long val);
 	void log(unsigned long val);
 
-	template<typename A0>
-	void logN(A0&& a0)
-	{
-		log(ministd::forward<A0>(a0));
-	}
-
-	template<typename A0, typename... AN>
-	void logN(A0&& a0, AN&&... aN)
-	{
-		log(ministd::forward<A0>(a0));
-		logN(ministd::forward<AN>(aN)...);
-	}
-
-	
 	//
 	// Helper to make it easier to manipulate strings in flash memory
 	// 
@@ -155,204 +153,228 @@ namespace cz::mut::detail
 		const char* m_pos;
 	};
 
+
+	//
+	// Allows indexing an initializer list, and counting elements
+	template<class T>
+	struct InitializerListHelper
+	{
+		const std::initializer_list<T>& list;
+		InitializerListHelper(const std::initializer_list<T>& list) : list(list)
+		{
+		}
+
+		T operator[](size_t index)
+		{
+			return *(list.begin() + index);
+		}
+
+		size_t size() const
+		{
+			return list.end() - list.begin();
+		}
+	};
+
 } // cz::mut::detail
-
-#define CZMUT_CONCATENATE_IMPL(s1,s2) s1##s2
-#define CZMUT_CONCATENATE(s1,s2) CZMUT_CONCATENATE_IMPL(s1,s2)
-
-// Note: __COUNTER__ Expands to an integer starting with 0 and incrementing by 1 every time it is used in a source file or included headers of the source file.
-#ifdef __COUNTER__
-	#define CZMUT_ANONYMOUS_VARIABLE(str) \
-		CZMUT_CONCATENATE(str,__COUNTER__)
-#else
-	#define ANONYMOUS_VARIABLE(str) \
-		CZMUT_CONCATENATE(str,__LINE__)
-#endif
-
-#define CZMUT_FLUSHLOG() cz::mut::detail::flushlog()
 
 namespace cz::mut
 {
-
-const char* getFilename(const char* file);
-// NOTE: No need for a version of logFailure that takes "const char* expr_str".
-//	* On Arduino, we'll always use __FlashStringHelper
-//	* On other platforms, __FlashStringHelper is "char", so no need for anything else
-void logFailure(const char* file, int line, const __FlashStringHelper* expr_str);
-
-enum class SectionState
-{
-	Uninitialized,
-	Ready,
-	Running,
-	Finished
-};
-
-class Section
-{
-public:
-	explicit Section(const __FlashStringHelper* name);
-	~Section();
-
-	static Section* getActive();
-	const __FlashStringHelper* getName() const;
-	bool tryExecute();
-	void start();
-	void end();
-
-private:
-
-	void onChildStart();
-	void onChildEnd(SectionState childState);
-
-	const __FlashStringHelper* m_name;
-	int m_level = 0;
-	bool m_childExecuted = false;
-	bool m_hasActiveChild = false;
-	SectionState m_state = SectionState::Uninitialized;
-	Section* m_parent = nullptr;
-	static Section* ms_active;
-};
-
-class TestCase
-{
-public:
-	using EntryFunction = void(*)();
-
-	struct Entry
-	{
-		Entry()
-			: func {nullptr}
-			, rootSection(F("ROOT"))
-		{
-		}
-		
-		Entry(EntryFunction func)
-			: func(func)
-			, rootSection(F("ROOT"))
-		{
-		}
-		EntryFunction func;
-		Section rootSection;
-		const __FlashStringHelper* typeName = nullptr;
-	};
-	
-	TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags);
-	virtual ~TestCase() ;
-	static TestCase* getActive();
-	static const __FlashStringHelper* getActiveTestType();
-	const __FlashStringHelper* getName() const;
-
-protected:
-	friend bool run(const __FlashStringHelper* tags);
-	friend bool filter(detail::FlashStringIterator tags);
-
-	virtual void onEnter() {}
-	virtual void onExit() {}
-
-	bool hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const;
-	static bool run();
-	static bool filter(detail::FlashStringIterator tags);
-
-	void setEntries(Entry* entries, unsigned char count)
-	{
-		m_entries = entries;
-		m_numEntries = count;
-	}
+	/**
+	 * Flogs the log.
+	 * This is useful on the arduino, whenever you want to make sure some logging is transmitted over the serial before executing the next instruction.
+	 */
+	void flushlog();
 
 	template<typename A0>
-	void addTypeNames(int index, A0&& a)
+	void logN(A0&& a0)
 	{
-		m_entries[index].typeName = a;
+		detail::log(ministd::forward<A0>(a0));
 	}
 
+	/**
+	 * Logs any number of passed parameters.
+	 * Note that this doesn't support any formating, but makes it easier to log something when you want to mix in strings stored in flash
+	 *
+	 * int a = 10; int b=20;
+	 * const char* c = "Hello ";
+	 * cz::mut::logN(c, F("World!"), a, F(","), b);
+	 *
+	 * This will log: Hello World!10,20
+	 *
+	 */
 	template<typename A0, typename... AN>
-	void addTypeNames(int index, A0&& a, AN&&... aN)
+	void logN(A0&& a0, AN&&... aN)
 	{
-		m_entries[index].typeName = a;
-		addTypeNames(index+1, ministd::forward<AN>(aN)...);
+		detail::log(ministd::forward<A0>(a0));
+		logN(ministd::forward<AN>(aN)...);
 	}
 
-private:
+	/**
+	* Given a file full path, such as given by __FILE__, it will strip the folders and return just the file name
+	* Useful to use directly with __FILE__ for logging purposes to reduce noise by not displaying folders.
+	*/
+	const char* getFilename(const char* file);
 
-	const __FlashStringHelper* m_name;
-	const __FlashStringHelper* m_tags;
-	TestCase* m_next;
-	Entry* m_entries;
-	unsigned char m_numEntries;
-	bool m_enabled;
 
-	static TestCase* ms_first;
-	static TestCase* ms_last;
-	static TestCase* ms_active;
-	static Entry* ms_activeEntry;
-};
+	// NOTE: No need for a version of logFailure that takes "const char* expr_str".
+	//	* On Arduino, we'll always use __FlashStringHelper
+	//	* On other platforms, __FlashStringHelper is "char", so no need for anything else
+	void logFailure(const char* file, int line, const __FlashStringHelper* expr_str);
 
-class SingleEntryTestCase : public TestCase
-{
-public:
-	
-	SingleEntryTestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags, EntryFunction func)
-		: TestCase(name, tags)
-		, m_myEntries{ func }
+	enum class SectionState
 	{
-		setEntries(m_myEntries, 1);
-	}
-	
-	virtual ~SingleEntryTestCase() {}
-private:
-	Entry m_myEntries[1];
-};
+		Uninitialized,
+		Ready,
+		Running,
+		Finished
+	};
 
-class AutoSection
-{
-public:
-	AutoSection(Section& section)
-		: m_section(section)
+	class Section
 	{
-		m_section.start();
-	}
+	public:
+		explicit Section(const __FlashStringHelper* name);
+		~Section();
 
-	~AutoSection()
+		static Section* getActive();
+		const __FlashStringHelper* getName() const;
+		bool tryExecute();
+		void start();
+		void end();
+
+	private:
+
+		void onChildStart();
+		void onChildEnd(SectionState childState);
+
+		const __FlashStringHelper* m_name;
+		int m_level = 0;
+		bool m_childExecuted = false;
+		bool m_hasActiveChild = false;
+		SectionState m_state = SectionState::Uninitialized;
+		Section* m_parent = nullptr;
+		static Section* ms_active;
+	};
+
+	class TestCase
 	{
-		m_section.end();
-	}
+	public:
+		using EntryFunction = void(*)();
 
-	explicit operator bool()
+		struct Entry
+		{
+			Entry()
+				: func {nullptr}
+				, rootSection(F("ROOT"))
+			{
+			}
+			
+			Entry(EntryFunction func)
+				: func(func)
+				, rootSection(F("ROOT"))
+			{
+			}
+			EntryFunction func;
+			Section rootSection;
+			const __FlashStringHelper* typeName = nullptr;
+		};
+		
+		TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags);
+		virtual ~TestCase() ;
+		static TestCase* getActive();
+		static const __FlashStringHelper* getActiveTestType();
+		const __FlashStringHelper* getName() const;
+
+	protected:
+		friend bool run(const __FlashStringHelper* tags);
+		friend bool filter(detail::FlashStringIterator tags);
+
+		virtual void onEnter() {}
+		virtual void onExit() {}
+
+		bool hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const;
+		static bool run();
+		static bool filter(detail::FlashStringIterator tags);
+
+		void setEntries(Entry* entries, unsigned char count)
+		{
+			m_entries = entries;
+			m_numEntries = count;
+		}
+
+		template<typename A0>
+		void addTypeNames(int index, A0&& a)
+		{
+			m_entries[index].typeName = a;
+		}
+
+		template<typename A0, typename... AN>
+		void addTypeNames(int index, A0&& a, AN&&... aN)
+		{
+			m_entries[index].typeName = a;
+			addTypeNames(index+1, ministd::forward<AN>(aN)...);
+		}
+
+	private:
+
+		const __FlashStringHelper* m_name;
+		const __FlashStringHelper* m_tags;
+		TestCase* m_next;
+		Entry* m_entries;
+		unsigned char m_numEntries;
+		bool m_enabled;
+
+		static TestCase* ms_first;
+		static TestCase* ms_last;
+		static TestCase* ms_active;
+		static Entry* ms_activeEntry;
+	};
+
+	class SingleEntryTestCase : public TestCase
 	{
-		return m_section.tryExecute();
-	}
+	public:
+		
+		SingleEntryTestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags, EntryFunction func)
+			: TestCase(name, tags)
+			, m_myEntries{ func }
+		{
+			setEntries(m_myEntries, 1);
+		}
+		
+		virtual ~SingleEntryTestCase() {}
+	private:
+		Entry m_myEntries[1];
+	};
 
-private:
-	Section& m_section;
-};
-
-//
-// Allows indexing an initializer list, and counting elements
-template<class T>
-struct InitializerListHelper {
-	const std::initializer_list<T>& list;
-	InitializerListHelper(const std::initializer_list<T>& list) : list(list)
+	class AutoSection
 	{
-	}
+	public:
+		AutoSection(Section& section)
+			: m_section(section)
+		{
+			m_section.start();
+		}
 
-	T operator[](size_t index)
-	{
-		return *(list.begin() + index);
-	}
+		~AutoSection()
+		{
+			m_section.end();
+		}
 
-	size_t size() const
-	{
-		return list.end() - list.begin();
-	}
-};
+		explicit operator bool()
+		{
+			return m_section.tryExecute();
+		}
 
-// a function, with the short name _ (underscore) for creating 
-// the _init_list_with_square_brackets out of a "regular" std::initializer_list
-template<class T>
-InitializerListHelper<T> _(const std::initializer_list<T>& list) {
-	return InitializerListHelper<T>(list);
-}
+	private:
+		Section& m_section;
+	};
+
+
+	// a function, with the short name _ (underscore) for creating 
+	// InitializerListHelper out of a "regular" std::initializer_list
+	template<class T>
+	detail::InitializerListHelper<T> _(const std::initializer_list<T>& list) {
+		return detail::InitializerListHelper<T>(list);
+	}
 
 template<typename A, typename B>
 bool compare(A a, B b);
@@ -368,7 +390,7 @@ bool compare(std::initializer_list<A> a, std::initializer_list<B> b)
 		return false;
 	}
 
-	for (int idx = 0; idx < a_count; idx++)
+	for (size_t idx = 0; idx < a_count; idx++)
 	{
 		if (_(a)[idx] != _(b)[idx])
 		{
@@ -389,7 +411,7 @@ bool compare(const A* a, size_t a_count, std::initializer_list<B> b)
 		return false;
 	}
 
-	for (int idx = 0; idx < a_count; idx++)
+	for (size_t idx = 0; idx < a_count; idx++)
 	{
 		if (a[idx] != _(b)[idx])
 		{
@@ -488,4 +510,3 @@ bool run(const __FlashStringHelper* tags = nullptr);
 #define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(__FILE__), __LINE__)
 
 #define CZMUT_LOG(fmt,...) cz::mut::detail::logFmt(F(fmt), ## __VA_ARGS__)
-#define CZMUT_FLUSHLOG() cz::mut::detail::flushlog()

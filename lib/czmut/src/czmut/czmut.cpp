@@ -4,13 +4,13 @@
 
 // Setting this to 1 enabled some extra logging during the filter processing
 // Only useful for internal development.
-#define CZMUT_DEBUG_FILTER 0
+#define CZMUT_DEBUG_FILTER 1
 
 // Used internally only for own library development
 #define CZMUT_ASSERT(expr) \
 	if (!(expr)) \
 	{ \
-		cz::mut::detail::logN(F("Assert: "), cz::mut::getFilename(__FILE__), ":", __LINE__, ", ", F(#expr)); \
+		cz::mut::logN(F("Assert: "), cz::mut::getFilename(__FILE__), ":", __LINE__, ", ", F(#expr)); \
 		cz::mut::detail::debugbreak(); \
 	}
 
@@ -147,10 +147,10 @@ namespace cz::mut::detail
 
 	void logRange(const __FlashStringHelper* name, FlashStringIterator start, FlashStringIterator end)
 	{
-		detail::logN(name);
+		logN(name);
 		detail::logFmt(F("(%u->%u), Len=%u:"), size_t(start.c_str()), size_t(end.c_str()), end-start);
 		logRange(start, end);
-		detail::logN(F(":"));
+		logN(F(":"));
 	}
 
 
@@ -184,6 +184,11 @@ namespace cz::mut::detail
 namespace cz::mut
 {
 
+void flushlog()
+{
+	detail::flushlog();
+}
+
 const char* getFilename(const char* file)
 {
 	const char* a = strrchr(file, '\\');
@@ -194,29 +199,29 @@ const char* getFilename(const char* file)
 
 void logFailedTest(const char* file, int line)
 {
-	detail::logN(F("FAILED: Test ["), TestCase::getActive()->getName());
+	logN(F("FAILED: Test ["), TestCase::getActive()->getName());
 	const __FlashStringHelper* typeName = TestCase::getActive()->getActiveTestType();
 	if (typeName)
 	{
-		detail::logN(F("<"), typeName, F(">"));
+		logN(F("<"), typeName, F(">"));
 	}
-	detail::logN(F("]. Section [" ), Section::getActive()->getName(), F("]. "));
-	detail::logN(F("Location ["), file, F(":"), line, F("]:\n"));
+	logN(F("]. Section [" ), Section::getActive()->getName(), F("]. "));
+	logN(F("Location ["), file, F(":"), line, F("]:\n"));
 }
 
 void logFailure(const char* file, int line, const char* expr_str)
 {
 	logFailedTest(file, line);
-	detail::logN(F("    CHECK: "), expr_str, F("\n"));
-	CZMUT_FLUSHLOG();
+	logN(F("    CHECK: "), expr_str, F("\n"));
+	flushlog();
 }
 
 #if defined(ARDUINO)
 void logFailure(const char* file, int line, const __FlashStringHelper* expr_str)
 {
 	logFailedTest(file, line);
-	detail::logN(F("    CHECK: "), expr_str, F("\n"));
-	CZMUT_FLUSHLOG();
+	logN(F("    CHECK: "), expr_str, F("\n"));
+	flushlog();
 }
 #endif
 
@@ -376,12 +381,12 @@ bool TestCase::run()
 				ms_active = test;
 
 				// Print in two steps, because the second one is also PROGMEM
-				detail::logN(F("RUNNING: Test ["), test->m_name);
+				logN(F("RUNNING: Test ["), test->m_name);
 				if (ms_active->getActiveTestType())
 				{
-					detail::logN(F("<"), ms_active->getActiveTestType(), F(">"));
+					logN(F("<"), ms_active->getActiveTestType(), F(">"));
 				}
-				detail::logN(F("], tags="), test->m_tags, F("\n"));
+				logN(F("], tags="), test->m_tags, F("\n"));
 
 				while(ms_activeEntry->rootSection.tryExecute())
 				{
@@ -429,9 +434,9 @@ bool TestCase::hasTag(detail::FlashStringIterator tagStart, detail::FlashStringI
 	// Iterate through all the test tags and check if we have the specified tag
 	// 
 	#if CZMUT_DEBUG_FILTER
-	detail::logN(F("            Checking if Test '"), m_name, F("'(tags="), m_tags, F(") has tag "));
+	logN(F("            Checking if Test '"), m_name, F("'(tags="), m_tags, F(") has tag "));
 	detail::logRange(tagStart, tagEnd);
-	detail::logN(F("\n"));
+	logN(F("\n"));
 	#endif
 
 	detail::FlashStringIterator testTagStart = detail::FlashStringIterator(m_tags);
@@ -444,7 +449,7 @@ bool TestCase::hasTag(detail::FlashStringIterator tagStart, detail::FlashStringI
 
 			if (*(testTagEnd-1) != ']')
 			{
-				detail::logN(F("Malformed tag: "), testTagStart.c_str());
+				logN(F("Malformed tag: "), testTagStart.c_str());
 				return false;
 			}
 		}

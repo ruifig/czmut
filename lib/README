@@ -99,7 +99,7 @@ Tests automatically self-register, and there is nothing else you need to do to m
 Declares a new test section. `Description` is used sonly for logging purposes.
 Sections can be nested.
 
-## `CZMUT_LOG(Fmt, ...)`
+### `CZMUT_LOG(Fmt, ...)`
 
 Generic logging, similar to `printf`.
 Used internally, but also publicly available. `Fmt` is automatically wrapped as `F(Fmt)` on Arduino, to store it in flash memory.
@@ -112,7 +112,9 @@ Example:
 `CZMUT_LOG("This is a log test: %s %S", "Hello", F("World!"));
 ```
 
-If you want to log a mix if parameters where some are strings stored in flash, you should probably use `detail::
+If you want to log a mix if parameters where some are strings stored in flash, you should probably use `cz::mut::logN`.
+
+
 
 
 Some differences from Catch
