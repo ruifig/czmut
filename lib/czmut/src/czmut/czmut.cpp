@@ -4,7 +4,7 @@
 
 // Setting this to 1 enabled some extra logging during the filter processing
 // Only useful for internal development.
-#define CZMUT_DEBUG_FILTER 1
+#define CZMUT_DEBUG_FILTER 0
 
 // Used internally only for own library development
 #define CZMUT_ASSERT(expr) \
@@ -165,7 +165,7 @@ void logRange(FlashStringIterator start, FlashStringIterator end)
 void logRange(const __FlashStringHelper* name, FlashStringIterator start, FlashStringIterator end)
 {
 	logN(name);
-	detail::logFmt(F("(%u->%u), Len=%u:"), size_t(start.c_str()), size_t(end.c_str()), end-start);
+	logN(F("("), size_t(start.c_str()), F("->"), size_t(end.c_str()), F("), Len="), end-start, F(":"));
 	logRange(start, end);
 	logN(F(":\n"));
 }
@@ -420,7 +420,7 @@ bool TestCase::filter(detail::FlashStringIterator tags)
 
 				if (*tagStart != '[' || *(tagEnd-1) != ']')
 				{
-					CZMUT_LOG("Malformed filter");
+					logN(F("Malformed filter\n"));
 					return false;
 				}
 
@@ -495,7 +495,7 @@ bool TestCase::run()
 		test = test->m_next;
 	}
 
-	detail::logFmt(F("FINISHED : %d tests ran. %d skipped\n"), testsRan, testsSkipped);
+	logN(F("FINISHED : "), testsRan, F(" test ran. "), testsSkipped, F(" skipped.\n") );
 
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;

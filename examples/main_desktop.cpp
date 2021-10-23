@@ -1,17 +1,6 @@
 #include "../lib/czmut/src/czmut/czmut.h"
 
-TEST_CASE("Der Derp ", "[Foo][Bar]")
-{
-	CZMUT_LOG("Hello world!\n");
-	int dummy = 1;
-
-	// If dummy is not 1, this will cause the test to fail and stop here
-	CHECK(dummy==1);
-}
-
 int main()
 {
-	cz::mut::equals({1,2,3}, {1,2,3});
-
-	return cz::mut::run(F("[example],~[basic]")) ? 0 : 1;
+	return cz::mut::run(F("[example]")) ? 0 : 1;
 }
