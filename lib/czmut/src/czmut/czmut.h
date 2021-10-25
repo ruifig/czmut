@@ -456,7 +456,7 @@ namespace cz::mut
 			return false;
 		}
 
-		for (int idx = 0; idx < a_count; idx++)
+		for (size_t idx = 0; idx < a_count; idx++)
 		{
 			if (a[idx] != b[idx])
 			{
