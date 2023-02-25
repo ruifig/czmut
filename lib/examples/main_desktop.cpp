@@ -1,4 +1,4 @@
-#include "../lib/czmut/src/czmut/czmut.h"
+#include <crazygaze/mut/mut.h>
 
 int main()
 {

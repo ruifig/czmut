@@ -1,5 +1,5 @@
 
-#include <czmut/czmut.h>
+#include <crazygaze/mut/mut.h>
 #include "../examples/main_arduino.cpp"
 
 // Add all examples so I can test them during development

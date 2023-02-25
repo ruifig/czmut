@@ -1,4 +1,4 @@
-#include "../lib/czmut/src/czmut/czmut.h"
+#include <crazygaze/mut/mut.h>
 
 TEST_CASE("A test case with sections", "[example][sections]")
 {
@@ -37,5 +37,4 @@ TEST_CASE("A test case with sections", "[example][sections]")
 		}
 	}
 }
-
 

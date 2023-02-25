@@ -1,7 +1,7 @@
 {
 	"name": "czmut",
-	"keyword": "unit tests",
-	"description": "Simple and small unit test framework inspired by catch",
+	"description": "Catch2 inspired unit test framework for microcontrollers"
+	"keywords": "unit tests",
 	"homepage": "https://crazygaze.com",
 	"repository": {
 		"type": "git",
@@ -12,12 +12,25 @@
 		"name" : "Rui Figueira",
 		"url": "https://crazygaze.com"
 	},
-	"exclude": [
-	],
+	"export" :
+	{
+		"include": [
+		],
+		"exclude": [
+			"CMakeLists.txt",
+			"*/CMakeLists.txt"
+		]
+	},
 	"frameworks": "*",
 	"platforms": "*",
 	"build" : {
+		"includeDir" : ".",
 		"unflags" : ["-std=c++11", "-std=gnu+11"],
-		"flags" : [ "-std=c++17", "-std=gnu++17"]
+		"flags" : [
+			"-std=c++17",
+			"-std=gnu++17",
+			"-I include"
+		]
 	}
 }
+

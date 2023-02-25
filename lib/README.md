@@ -105,7 +105,7 @@ Sections can be nested.
 ### `CZMUT_LOG(Fmt, ...)`
 
 Generic logging, similar to `printf`.
-Used internally, but also publicly available. `Fmt` is automatically wrapped as `F(Fmt)` on Arduino, to store it in flash memory.
+Used internally, but also publicly available. `Fmt` is automatically wrapped as `F(Fmt)` for AVR platforms on Arduino, to store it in flash memory.
 
 On Arduino (AVR platform), if one of the parameters is a string in flash memory, you can use the `%S` specifier, although it is not recommended, since that same code might not run on other platforms. This is because the AVR standard library reserves the `%S` specifier for this purpose.
 
