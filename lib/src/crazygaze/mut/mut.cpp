@@ -22,8 +22,10 @@ void debugbreak()
 	#ifdef _WIN32
 		// Win32 debug instruction
 		::__debugbreak();
-	#elif CZMUT_AVR8
+	#elif CZMUT_AVR
 		__asm__ __volatile__("break");
+	#elif CZMUT_RP2040
+		__builtin_trap();
 	#else
 		#error Unknown or unsupported platform
 	#endif

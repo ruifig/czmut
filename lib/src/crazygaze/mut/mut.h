@@ -10,10 +10,16 @@
 	#define CZMUT_DESKTOP 0
 #endif
 
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(__AVR_ATmega1284__) || defined(__AVR_ATmega1284P__) || defined(__AVR_ATmega644__) || defined(__AVR_ATmega644A__) || defined(__AVR_ATmega644P__) || defined(__AVR_ATmega644PA__)
-	#define CZMUT_AVR8 1
+#if defined(__AVR__)
+	#define CZMUT_AVR 1
 #else
-	#define CZMUT_AVR8 0
+	#define CZMUT_AVR 0
+#endif
+
+#if defined(ARDUINO_ARCH_RP2040)
+	#define CZMUT_RP2040 1
+#else
+	#define CZMUT_RP2040 0
 #endif
 
 #if defined(ARDUINO)

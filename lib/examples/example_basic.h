@@ -6,4 +6,3 @@ TEST_CASE("Very simple test", "[example][basic]")
 	// If dummy is not 1, this will cause the test to fail and stop here
 	CHECK(dummy==1);
 }
-

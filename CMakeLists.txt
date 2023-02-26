@@ -36,4 +36,5 @@ include(cmake/utils.cmake)
 # Set all targets to use Unicode
 add_definitions(-DUNICODE -D_UNICODE)
 add_subdirectory(./lib)
+add_subdirectory(./src)
 
