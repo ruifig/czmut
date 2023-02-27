@@ -1,5 +1,7 @@
 #pragma once
 
+#include "static_string.h"
+
 #if __cplusplus < 201703L
 	#error "czmut needs C++17 support. On GCC, you can user the build flags -std=c++17 and -std=gnu++17. With MSVC you need /Zc:__cplusplus and /std:c++17"
 #endif

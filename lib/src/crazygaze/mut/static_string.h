@@ -1,3 +1,4 @@
+#pragma once
 
 #define CZMUT_HAS_EXCEPTION 0
 
