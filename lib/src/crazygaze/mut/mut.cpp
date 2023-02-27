@@ -17,6 +17,8 @@
 namespace cz::mut::detail
 {
 
+Results gResults;
+
 void debugbreak()
 {
 	#ifdef _WIN32
@@ -134,8 +136,14 @@ void log(unsigned long val)
 
 void logFailedTest(const __FlashStringHelper* file, int line)
 {
-	logN(F("FAILED: Test ["), TestCase::getActive()->getName());
-	const __FlashStringHelper* typeName = TestCase::getActive()->getActiveTestType();
+	TestCase* test = TestCase::getActive();
+	if (!test->hasFailed())
+	{
+		gResults.testsFailed++;
+		test->setFailed();
+	}
+	logN(F("FAILED: Test ["), test->getName());
+	const __FlashStringHelper* typeName = test->getActiveTestType();
 	if (typeName)
 	{
 		logN(F("<"), typeName, F(">"));
@@ -144,10 +152,31 @@ void logFailedTest(const __FlashStringHelper* file, int line)
 	logN(F("Location ["), file, F(":"), line, F("]:\n"));
 }
 
-void logFailure(const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str)
+void doCheck(bool result, const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str)
 {
+	::cz::mut::detail::gResults.assertions++;
+	if (!result)
+	{
+		cz::mut::detail::logAssertionFailure(F("CHECK"), file, line, expr_str);
+	}
+}
+
+void doRequire(bool result, const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str)
+{
+	::cz::mut::detail::gResults.assertions++;
+	if (!result)
+	{
+		cz::mut::detail::logAssertionFailure(F("REQUIRE"), file, line, expr_str);
+		logFinalResults();
+		cz::mut::detail::debugbreak();
+	}
+}
+
+void logAssertionFailure(const __FlashStringHelper* assertionType, const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str)
+{
+	gResults.assertionsFailed++;
 	logFailedTest(file, line);
-	logN(F("    CHECK: "), expr_str, F("\n"));
+	logN(F("    "), assertionType, F(": "), expr_str, F("\n"));
 	flushlog();
 }
 
@@ -457,15 +486,14 @@ bool TestCase::run()
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;
 
-	int testsRan = 0;
-	int testsSkipped = 0;
+	memset(&gResults, 0, sizeof(gResults));
 	int totalTestCalls = 0;
 
 	while (test)
 	{
 		if (test->m_enabled)
 		{
-			testsRan += test->m_numEntries;
+			gResults.testsRan += test->m_numEntries;
 			for(int entryIndex=0; entryIndex<test->m_numEntries; entryIndex++)
 			{
 				ms_activeEntry = &test->m_entries[entryIndex];
@@ -491,17 +519,25 @@ bool TestCase::run()
 		}
 		else
 		{
-			testsSkipped += test->m_numEntries;
+			gResults.testsSkipped += test->m_numEntries;
 		}
 
 		test = test->m_next;
 	}
 
-	logN(F("FINISHED : "), testsRan, F(" test ran. "), testsSkipped, F(" skipped.\n") );
+	logFinalResults();
 
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;
 	return true;
+}
+
+void logFinalResults()
+{
+	logN(gResults.testsRan, F(" tests ran. "), gResults.testsSkipped, F(" test skipped. "), gResults.testsFailed, F( " tests failed.\n"));
+	logN(gResults.assertions, F(" total assertions. "), gResults.assertionsFailed, F(" assertions failed.\n"));
+	logN(gResults.assertionsFailed ? F("**** FAILED ****\n") : F("**** SUCCESS ****\n"));
+
 }
 
 cz::mut::detail::TestCase* TestCase::getActive()

@@ -96,10 +96,15 @@ namespace cz::mut::detail
 	void log(long val);
 	void log(unsigned long val);
 
-	// NOTE: No need for a version of logFailure that takes "const char* expr_str".
+	void doCheck(bool result, const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str);
+	void doRequire(bool result, const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str);
+
+	// NOTE: No need for a version of logAssertionFailure that takes "const char* expr_str".
 	//	* On Arduino, we'll always use __FlashStringHelper
 	//	* On other platforms, __FlashStringHelper is "char", so no need for anything else
-	void logFailure(const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str);
+	void logAssertionFailure(const __FlashStringHelper* assertionType, const __FlashStringHelper* file, int line, const __FlashStringHelper* expr_str);
+
+	void logFinalResults();
 
 	//
 	// Helper to make it easier to manipulate strings in flash memory
@@ -299,6 +304,16 @@ namespace cz::mut::detail
 		static const __FlashStringHelper* getActiveTestType();
 		const __FlashStringHelper* getName() const;
 
+		bool hasFailed() const
+		{
+			return m_failed;
+		}
+
+		void setFailed()
+		{
+			m_failed = true;
+		}
+
 	protected:
 		friend bool cz::mut::run(const __FlashStringHelper* tags);
 
@@ -336,6 +351,7 @@ namespace cz::mut::detail
 		Entry* m_entries;
 		unsigned char m_numEntries;
 		bool m_enabled;
+		bool m_failed;
 
 		static TestCase* ms_first;
 		static TestCase* ms_last;
@@ -358,6 +374,16 @@ namespace cz::mut::detail
 		Entry m_myEntries[1];
 	};
 
+	struct Results
+	{
+		int testsRan = 0;
+		int testsSkipped = 0;
+		int testsFailed = 0;
+		int assertions = 0;
+		int assertionsFailed = 0;
+	};
+
+	extern Results gResults;
 } // cz::mut::detail
 
 namespace cz::mut
@@ -513,12 +539,10 @@ namespace cz::mut
 
 
 #define INTERNAL_CHECK(expr, file, line) \
-	if (!(expr)) \
-	{ \
-		cz::mut::detail::logFailure(file, line, F(#expr)); \
-		cz::mut::detail::debugbreak(); \
-	}
+	cz::mut::detail::doCheck((expr), file, line, F(#expr))
 
+#define INTERNAL_REQUIRE(expr, file, line) \
+	cz::mut::detail::doRequire((expr), file, line, F(#expr))
 
 #define TEST_CASE(Description, Tags) INTERNAL_TEST_CASE(cz::mut::detail::SingleEntryTestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc))
 
@@ -538,5 +562,7 @@ namespace cz::mut
 #define SECTION(Description) INTERNAL_SECTION(Description, CZMUT_ANONYMOUS_VARIABLE(CZMUT_section))
 
 #define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(F(__FILE__)), __LINE__)
+
+#define REQUIRE(expr) INTERNAL_REQUIRE(expr, cz::mut::getFilename(F(__FILE__)), __LINE__)
 
 #define CZMUT_LOG(fmt,...) cz::mut::detail::logFmt(F(fmt), ## __VA_ARGS__)

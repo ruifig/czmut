@@ -3,20 +3,31 @@
 
 CZMUT is a small unit test framework inspired by Catch (https://github.com/catchorg), targetting embedded systems.
 
+**Requires C++ 17 support**.
+I think it would be reasonable to make it work with C++ 11 or C++ 14. Someday I might get around to see how feasible that is
+
 # Features
 
-* Arduino support
-* Desktop support (Windows, Linux, etc), so you can develop code on desktop for faster iterations
-* Other platforms that have a minimal standard C library.
-	* None tested at the moment, but the code as very few dependencies, other than requiring a C++17 compiler
+* Support platforms
+	* Arduino
+		* Raspberry Pi Pico
+		* AVR
+		* Fairly easy to add support for others, but no documentation at the moment
+	* Desktop support
+        * Probably just Windows at the moment. Again, fairly easy to support others, but no documentation.
+* Minimal dependency on the C standard library
 * Small code and ram footprint
 	* RAM footprint quickly grows as you add more tests, since it needs to declare global objects (the test cases themselves). This might potentially be reduced further in the future, but complicates the code.
+	* At the time of writting, the sample, built for the Arduino Uno (release build), takes about ~421 bytes of ram and 7308 bytes of flash, although a big chunk of that you only pay once (Arduino globals and code)
 * No use of exceptions. Therefore, some more advanced things are not implemented.
 * No heap use
 
 # Documentation
 
-Similar to Catch, tests are created with the `TEST_CASE` macro.
+Logging is done to the console on desktop platforms, and to the serial port on microcontrollers (e.g: it uses **Serial** on Arduino)
+
+The API is similar to Catch, tests are created with the `TEST_CASE` macro.
+
 
 ```cpp
 int dummy = 1;
@@ -102,6 +113,16 @@ Tests automatically self-register, and there is nothing else you need to do to m
 Declares a new test section. `Description` is used sonly for logging purposes.
 Sections can be nested.
 
+## `CHECK(expression)`
+
+Executes `expression` and if the result is false it fails the current test case. Execution continues.
+
+## `REQUIRE(expression)`
+
+Executes `expression` and if the result is false stops execution right away.
+
+Note that contrary to Catch2, a failed REQUIRE does NOT continue to the next test case. It stops the program. This is intentional to avoid C++ exceptions.
+
 ### `CZMUT_LOG(Fmt, ...)`
 
 Generic logging, similar to `printf`.
@@ -139,7 +160,7 @@ This will log: `Hello World!10,20`
 ### `getFilename`
 
 Strips the path part of the specified file.
-Mostly useful to log the current file excluding the folder(s) part, to reduce noise.
+Mostly useful to log the current file excluding the folder(s) part, to reduce logging noise.
 Example:
 
 ```cpp
@@ -175,6 +196,6 @@ Some differences from Catch
 
 Due to its simplicity, there are some serious limitations compared to catch. Some that I can think of:
 
-* Check expressions are not decomposed. They are executed as-is, and if they fail, the full expressions is logged as a string
-* A failed check expression causes the entire run to halt straight away. This is intentional, since czmut doesn't use exceptions. 
+* Assertion expressions are not decomposed. They are executed as-is, and if they fail, the full expressions is logged as a string
+* A failed REQUIRE causes the entire run to halt straight away. This is intentional, since czmut doesn't use exceptions. 
 
