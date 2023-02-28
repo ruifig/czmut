@@ -34,7 +34,8 @@
 			"-std=gnu++17"
 		],
 		"srcDir" : ".",
-		"srcFilter" : "+<*> -<examples>"
+		"srcFilter" : "+<*> -<examples>",
+		"includeDir" : "./src"
 	}
 }
 
