@@ -1,8 +1,9 @@
 #include <crazygaze/mut/mut.h>
 
-// This MUST be defined with the desired value before the compiler sees any of the tests.
-// You can either set this globally when compiling the project, or explicitly before the test(s) code
-#define CZMUT_COMPILE_TIME_TAGS ""
+// Required to facilitate compile time test case filtering (see documentation)
+#ifndef CZMUT_COMPILE_TIME_TAGS
+	#define CZMUT_COMPILE_TIME_TAGS ""
+#endif
 
 /*
 Add all examples so I can test them during development

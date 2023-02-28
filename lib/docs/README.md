@@ -33,6 +33,12 @@ The API is similar to Catch, tests are created with the `TEST_CASE` macro.
 
 
 ```cpp
+
+// Required to facilitate compile time test case filtering (see documentation)
+#ifndef CZMUT_COMPILE_TIME_TAGS
+	#define CZMUT_COMPILE_TIME_TAGS ""
+#endif
+
 int dummy = 1;
 TEST_CASE("My first test", "[example]")
 {
