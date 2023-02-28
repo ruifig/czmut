@@ -29,10 +29,11 @@ Supported architectures/platforms is limited to that I have on hand, although po
 
 Logging is done to the console on desktop platforms, and to the serial port on microcontrollers (e.g: it uses **Serial** on Arduino)
 
-The API is similar to Catch, tests are created with the `TEST_CASE` macro.
+The API is similar to Catch, where tests are created with the `TEST_CASE` macro.
 
 
 ```cpp
+#include <crazygaze/mut/mut.h>
 
 // Required to facilitate compile time test case filtering (see documentation)
 #ifndef CZMUT_COMPILE_TIME_TAGS
