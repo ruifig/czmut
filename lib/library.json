@@ -1,7 +1,7 @@
 {
 	"name": "czmut",
-	"description": "Catch2 inspired unit test framework for microcontrollers"
-	"keywords": "unit tests",
+	"description": "Catch2 inspired unit test framework for microcontrollers",
+	"keywords": "unit tests,catch2,arduino",
 	"homepage": "https://crazygaze.com",
 	"repository": {
 		"type": "git",
@@ -10,8 +10,11 @@
 	"version": "0.0.1",
 	"authors":{
 		"name" : "Rui Figueira",
-		"url": "https://crazygaze.com"
+		"email" : "ruimvfigueira@gmail.com",
+		"url": "https://crazygaze.com",
+		"maintainer" : true
 	},
+	"license": "MIT",
 	"export" :
 	{
 		"include": [
@@ -21,14 +24,14 @@
 			"*/CMakeLists.txt"
 		]
 	},
-	"frameworks": "*",
+	"frameworks": ["arduino"],
 	"platforms": "*",
+	"headers" : ["mut.h"],
 	"build" : {
 		"unflags" : ["-std=c++11", "-std=gnu+11"],
 		"flags" : [
 			"-std=c++17",
-			"-std=gnu++17",
-			"-I include"
+			"-std=gnu++17"
 		],
 		"srcDir" : ".",
 		"srcFilter" : "+<*> -<examples>"

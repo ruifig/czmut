@@ -29,12 +29,50 @@ void debugbreak()
 	#elif CZMUT_RP2040
 		__builtin_trap();
 	#else
-		#error Unknown or unsupported platform
+		#warning Unknown or unsupported platform. Using an infinite loop as as debugbreak
 	#endif
 
 	// Make sure we don't go anywhere and it stops here, since czmut doesn't can't jump out of tests
 	while(true) {};
 }
+
+#if defined(ESP32)
+	#define strchr_P strchr
+	#define strrchr_P strrchr
+#elif defined(ESP8266) // there is no strchr_P in ESP8266 ROM ?
+
+static const char* strchr_P(const char* str, char c)
+{
+	char z;
+	for (;;) {
+		z = pgm_read_byte(str);
+		if (!z) return NULL;
+		if (z == c) return str;
+		str++;
+	}
+}
+
+const char* strrchr_P(const char* str, char c)
+{
+	const char* rtnval = 0;
+
+	char z;
+	do {
+		z = pgm_read_byte(str);
+
+		if (z == c)
+			rtnval = str;
+
+		if (z == 0)
+			break;
+
+		str++;
+	} while (true);
+
+	return (rtnval);
+}
+
+#endif
 
 #if CZMUT_DESKTOP
 void logStr(const char* str)
@@ -225,6 +263,46 @@ bool compareStrings_P(FlashStringIterator aStart, FlashStringIterator aEnd, Flas
 	}
 
 	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// FlashStringIterator
+//////////////////////////////////////////////////////////////////////////
+
+char FlashStringIterator::operator*() const
+{
+#if defined(ARDUINO)
+	return pgm_read_byte(m_pos);
+#else
+	return *m_pos;
+#endif
+}
+
+size_t FlashStringIterator::len() const
+{
+#if defined(ARDUINO)
+	return strlen_P(m_pos);
+#else
+	return strlen(m_pos);
+#endif
+}
+
+FlashStringIterator FlashStringIterator::findChar(char ch, size_t pos) const
+{
+#if defined(ARDUINO)
+	return FlashStringIterator(strchr_P(m_pos + pos, ch));
+#else
+	return FlashStringIterator(strchr(m_pos + pos, ch));
+#endif
+}
+
+FlashStringIterator FlashStringIterator::findLastChar(char ch) const
+{
+#if defined(ARDUINO)
+	return FlashStringIterator(strrchr_P(m_pos, ch));
+#else
+	return FlashStringIterator(strrchr(m_pos, ch));
+#endif
 }
 
 

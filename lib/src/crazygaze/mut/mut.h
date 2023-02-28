@@ -134,50 +134,21 @@ namespace cz::mut::detail
 			return *this;
 		}
 
-		inline char operator*() const
-		{
-		#if defined(ARDUINO)
-			return pgm_read_byte(m_pos);
-		#else
-			return *m_pos;
-		#endif
-		}
+		char operator*() const;
 
-		size_t len() const
-		{
-		#if defined(ARDUINO)
-			return strlen_P(m_pos);
-		#else
-			return strlen(m_pos);
-		#endif
-		}
+		size_t len() const;
 
 		/**
 		 * Find the first occurrence of the specified character.
 		 * Returns an iterator to the character, or a null iterator if not found.
 		 */
-		FlashStringIterator findChar(char ch, size_t pos = 0) const
-		{
-		#if defined(ARDUINO)
-			return FlashStringIterator(strchr_P(m_pos + pos, ch));
-		#else
-			return FlashStringIterator(strchr(m_pos + pos, ch));
-		#endif
-		}
+		FlashStringIterator findChar(char ch, size_t pos = 0) const;
 
 		/**
 		 * Find the last occurrence of the specified character.
 		 * Returns an iterator to the character, or a null iterator if not found.
 		 */
-		FlashStringIterator findLastChar(char ch) const
-		{
-		#if defined(ARDUINO)
-			return FlashStringIterator(strrchr_P(m_pos, ch));
-		#else
-			return FlashStringIterator(strrchr(m_pos, ch));
-		#endif
-		}
-
+		FlashStringIterator findLastChar(char ch) const;
 
 		inline bool operator==(const FlashStringIterator& other) const { return m_pos == other.m_pos; }
 		inline bool operator!=(const FlashStringIterator& other) const { return m_pos != other.m_pos; }
@@ -399,11 +370,11 @@ namespace cz::mut::detail
 
 	struct Results
 	{
-		int testsRan = 0;
-		int testsSkipped = 0;
-		int testsFailed = 0;
-		int assertions = 0;
-		int assertionsFailed = 0;
+		int testsRan;
+		int testsSkipped;
+		int testsFailed;
+		int assertions;
+		int assertionsFailed;
 	};
 
 	extern Results gResults;

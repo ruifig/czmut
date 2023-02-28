@@ -13,7 +13,8 @@ Supported architectures/platforms is limited to that I have on hand, although po
 	* Arduino. Only the following boards/microcontrollers tested at the moment:
 		* Raspberry Pi Pico
 		* AVR (Arduino Uno, Mega2560).
-		* Fairly easy to add support for others, but no documentation at the moment.
+		* ESP8266 / ESP32 - Builds but untested (I don't have any to test)
+		* Very easy to add support for others, but no documentation at the moment.
 	* Desktop support
         * Just Windows at the moment. Again, fairly easy to support others, but no documentation. It's mostly a couple of defines that need to be set right.
 * Minimal dependency on the C standard library
