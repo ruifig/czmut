@@ -236,6 +236,8 @@ Section* Section::ms_active;
 Section::Section(const __FlashStringHelper* name)
 	: m_name(name)
 	, m_state(State::Ready)
+	, m_childExecuted(false)
+	, m_hasActiveChild(false)
 {
 }
 
@@ -275,7 +277,6 @@ void Section::start()
 {
 	if (ms_active == nullptr)
 	{
-		m_level = 0;
 		ms_active = this;
 		m_parent = nullptr;
 	}
@@ -283,11 +284,8 @@ void Section::start()
 	{
 		m_parent = ms_active;
 		ms_active = this;
-		m_level = m_parent->m_level + 4;
 		m_parent->onChildStart();
 	}
-
-	//printf("%*sSection::start() - %s\n", m_level, "", m_name);
 }
 
 void Section::end()
@@ -325,13 +323,10 @@ void Section::end()
 	{
 		ms_active = nullptr;
 	}
-
-	//printf("%*sSection::end() - %s\n", m_level, "", m_name);
 }
 
 void Section::onChildStart()
 {
-	//printf("%*sSection::onChildStart() - %s\n", m_level + 4, "", m_name);
 }
 
 void Section::onChildEnd(State childState)
@@ -340,7 +335,6 @@ void Section::onChildEnd(State childState)
 	{
 		m_hasActiveChild = true;
 	}
-	//printf("%*sSection::onChildEnd() - %s\n", m_level + 4, "", m_name);
 }
 
 
@@ -356,6 +350,8 @@ TestCase::Entry* TestCase::ms_activeEntry;
 TestCase::TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags)
 	: m_name(name)
 	, m_tags(tags)
+	, m_enabled(false)
+	, m_failed(false)
 {
 	if (ms_first == nullptr)
 	{
@@ -426,6 +422,12 @@ bool TestCase::filter(detail::FlashStringIterator tags)
 		TestCase* test = ms_first;
 		while (test)
 		{
+			// If a test is already enabled as part of a previous token, then we can continue to the next one
+			if (test->m_enabled)
+			{
+				test = test->m_next;
+				continue;
+			}
 
 			//
 			// Iterate through all the individual tags in the token, and compare with the test tags
@@ -458,6 +460,8 @@ bool TestCase::filter(detail::FlashStringIterator tags)
 				if (!test->hasTag(tagStart, tagEnd))
 				{
 					hasAllTags = false;
+					// A test must have all the tags in a token in order to be enabled, so if we fail to match even one, this test
+					// if considered disabled
 					break;
 				}
 
@@ -467,6 +471,10 @@ bool TestCase::filter(detail::FlashStringIterator tags)
 
 			if ((hasAllTags && !exclude) || (!hasAllTags && exclude))
 			{
+					#if CZMUT_DEBUG_FILTER
+					if (!test->m_enabled)
+						logN(F("                *** Marking test as ENABLED ***\n"));
+					#endif
 				test->m_enabled = true;
 			}
 
@@ -527,7 +535,7 @@ bool TestCase::run()
 
 	ms_active = nullptr;
 	ms_activeEntry = nullptr;
-	return true;
+	return gResults.assertionsFailed ? false : true;
 }
 
 void logFinalResults()
@@ -595,6 +603,19 @@ bool TestCase::hasTag(detail::FlashStringIterator tagStart, detail::FlashStringI
 	return false;
 }
 
+int TestCase::countEnabledTests()
+{
+	int totalEnabledTest = 0;
+	const TestCase* test = ms_first;
+	while (test)
+	{
+		if (test->m_enabled)
+			totalEnabledTest++;
+		test = test->m_next;
+	}
+	return totalEnabledTest;
+}
+
 } // cz::mut::detail
 
 namespace cz::mut
@@ -630,6 +651,13 @@ bool run(const __FlashStringHelper* tags)
 {
 	if (!detail::TestCase::filter(detail::FlashStringIterator(tags)))
 	{
+		return false;
+	}
+
+	if (detail::TestCase::countEnabledTests()==0)
+	{
+		logN(F("No tests enabled (check your tag expression)\n"));
+		logN(F("**** FAILED ****\n"));
 		return false;
 	}
 

@@ -53,6 +53,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#if CZMUT_DESKTOP
+	#include <stdlib.h>
+#endif
 #include "./helpers/vaargs_to_string_array.h"
 #include "./helpers/static_string.h"
 
@@ -246,12 +249,15 @@ namespace cz::mut::detail
 		void onChildEnd(State childState);
 
 		const __FlashStringHelper* m_name;
-		int m_level = 0;
-		bool m_childExecuted = false;
-		bool m_hasActiveChild = false;
-		State m_state = State::Uninitialized;
 		Section* m_parent = nullptr;
 		static Section* ms_active;
+
+		// If you get an error such as: 'cz::mut::detail::Section::m_state' is too small to hold all values of 'enum class cz::mut::detail::Section::State' ,
+		// it's because you're still on an old AVR toolchain (e.g: toolchain-atmelavr @ 1.70300.191015 (7.3.0) ).
+		// It will still work, but the warning is a bug in GCC that was fixed in 9.3. See (toolchain-atmelavr @ 1.70300.191015 (7.3.0))
+		State m_state : 2;
+		bool m_childExecuted : 1;
+		bool m_hasActiveChild : 1;
 	};
 
 	class AutoSection
@@ -316,6 +322,8 @@ namespace cz::mut::detail
 			m_failed = true;
 		}
 
+		static int countEnabledTests();
+
 	protected:
 		friend bool cz::mut::run(const __FlashStringHelper* tags);
 		bool hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const;
@@ -341,15 +349,20 @@ namespace cz::mut::detail
 			addTypeNames(index+1, ministd::forward<AN>(aN)...);
 		}
 
+		// This is used to control how big the list of types of a templated test case. Using a specific number of bits
+		// so we can pack things tightly and save RAM.
+		// 6 bits means a maximum value of 63. A type list of 63 types for a templated test case should be enough. :)
+		static constexpr int NumEntriesBits = 6;
+
 	private:
 
 		const __FlashStringHelper* m_name;
 		const __FlashStringHelper* m_tags;
 		TestCase* m_next;
 		Entry* m_entries;
-		unsigned char m_numEntries;
-		bool m_enabled;
-		bool m_failed;
+		unsigned char m_numEntries : NumEntriesBits;
+		bool m_enabled : 1;
+		bool m_failed : 1;
 
 		static TestCase* ms_first;
 		static TestCase* ms_last;
@@ -519,13 +532,12 @@ namespace cz::mut
 	namespace { \
 		static const char CZMUT_CONCATENATE(desc_,TestFunction)[] PROGMEM = Description; \
 		static const char CZMUT_CONCATENATE(tags_,TestFunction)[] PROGMEM = Tags; \
-		TestClass<cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS))> CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase) ( \
+		TestClass<cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(CZMUT_COMPILE_TIME_TAGS))> CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase) ( \
 			(const __FlashStringHelper*) CZMUT_CONCATENATE(desc_, TestFunction), \
 			(const __FlashStringHelper*) CZMUT_CONCATENATE(tags_, TestFunction), \
 			&TestFunction); \
 	} \
-	static void TestFunction() { \
-		if constexpr(cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS)))
+	static void TestFunction()
 
 
 
@@ -555,41 +567,20 @@ namespace cz::mut
 				, m_myEntries { funcs... }
 			{
 				static_assert(NumEntries == sizeof...(FuncPtrs));
+				static_assert(NumEntries < (1<<TBaseTestClass::NumEntriesBits));
 				this->setEntries(m_myEntries, NumEntries);
 			}
 		};
 	}
 
-#if 0
 #define INTERNAL_TEMPLATED_TEST_CASE(TestClass, BaseTestClass, Description, Tags, TestFunction, ...) \
 	template<typename TestType> \
 	static void TestFunction(); \
 	namespace { \
 		template<typename... Type> \
-		struct TestClass : public BaseTestClass \
+		struct TestClass : public ::cz::mut::detail::TemplatedTestCaseBaseClass<::cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(CZMUT_COMPILE_TIME_TAGS)), BaseTestClass, sizeof...(Type)> \
 		{ \
-			Entry m_myEntries[sizeof...(Type)]; \
-			TestClass() \
-				: BaseTestClass(F(Description), F(Tags)) \
-				, m_myEntries { (&TestFunction<Type>)... } \
-			{ \
-				setEntries(m_myEntries, sizeof...(Type)); \
-				addTypeNames(0, CZMUT_BUILD_STRING_LIST_P(__VA_ARGS__)); \
-			} \
-		}; \
-		TestClass< __VA_ARGS__ > CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase); \
-	} \
-	template<typename TestType> \
-	static void TestFunction()
-#else
-#define INTERNAL_TEMPLATED_TEST_CASE(TestClass, BaseTestClass, Description, Tags, TestFunction, ...) \
-	template<typename TestType> \
-	static void TestFunction(); \
-	namespace { \
-		template<typename... Type> \
-		struct TestClass : public ::cz::mut::detail::TemplatedTestCaseBaseClass<::cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS)), BaseTestClass, sizeof...(Type)> \
-		{ \
-			using Super = ::cz::mut::detail::TemplatedTestCaseBaseClass<::cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS)), BaseTestClass, sizeof...(Type)>;\
+			using Super = ::cz::mut::detail::TemplatedTestCaseBaseClass<::cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(CZMUT_COMPILE_TIME_TAGS)), BaseTestClass, sizeof...(Type)>;\
 			TestClass() \
 				: Super(F(Description), F(Tags), (&TestFunction<Type>)...) \
 			{ \
@@ -601,7 +592,6 @@ namespace cz::mut
 	} \
 	template<typename TestType> \
 	static void TestFunction()
-#endif
 
 #define INTERNAL_CHECK(expr, file, line) \
 	cz::mut::detail::doCheck((expr), file, line, F(#expr))

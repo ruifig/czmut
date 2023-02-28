@@ -36,5 +36,5 @@ TEST_CASE("A test case with sections", "[example][sections]")
 			CHECK(dummy==4);
 		}
 	}
-}}
+}
 
