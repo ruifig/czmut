@@ -511,9 +511,7 @@ bool TestCase::run()
 				{
 					totalTestCalls++;
 					AutoSection sec(ms_activeEntry->rootSection);
-					test->onEnter();
 					ms_activeEntry->func();
-					test->onExit();
 				}
 			}
 		}

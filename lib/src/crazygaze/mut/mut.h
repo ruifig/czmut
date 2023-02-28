@@ -1,6 +1,5 @@
 #pragma once
 
-#include "static_string.h"
 
 #if __cplusplus < 201703L
 	#error "czmut needs C++17 support. On GCC, you can user the build flags -std=c++17 and -std=gnu++17. With MSVC you need /Zc:__cplusplus and /std:c++17"
@@ -55,6 +54,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "./helpers/vaargs_to_string_array.h"
+#include "./helpers/static_string.h"
 
 #define CZMUT_CONCATENATE_IMPL(s1,s2) s1##s2
 #define CZMUT_CONCATENATE(s1,s2) CZMUT_CONCATENATE_IMPL(s1,s2)
@@ -301,7 +301,7 @@ namespace cz::mut::detail
 		};
 		
 		TestCase(const __FlashStringHelper* name, const __FlashStringHelper* tags);
-		virtual ~TestCase() ;
+		~TestCase() ;
 		static TestCase* getActive();
 		static const __FlashStringHelper* getActiveTestType();
 		const __FlashStringHelper* getName() const;
@@ -318,10 +318,6 @@ namespace cz::mut::detail
 
 	protected:
 		friend bool cz::mut::run(const __FlashStringHelper* tags);
-
-		virtual void onEnter() {}
-		virtual void onExit() {}
-
 		bool hasTag(detail::FlashStringIterator tagStart, detail::FlashStringIterator tagEnd) const;
 		static bool run();
 		static bool filter(detail::FlashStringIterator tags);
@@ -607,28 +603,22 @@ namespace cz::mut
 	static void TestFunction()
 #endif
 
-
 #define INTERNAL_CHECK(expr, file, line) \
 	cz::mut::detail::doCheck((expr), file, line, F(#expr))
 
 #define INTERNAL_REQUIRE(expr, file, line) \
 	cz::mut::detail::doRequire((expr), file, line, F(#expr))
 
+
+//
+// Public API
+//
+
 #define TEST_CASE(Description, Tags) INTERNAL_TEST_CASE(cz::mut::detail::SingleEntryTestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc))
 
 #define TEMPLATED_TEST_CASE(Description, Tags, ...)  \
 	INTERNAL_TEMPLATED_TEST_CASE(CZMUT_ANONYMOUS_VARIABLE(CZMUT_TemplateTestCase), cz::mut::detail::TestCase, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc), __VA_ARGS__)
 	
-/**
- * Allows specifying a custom class derived from cz::mut::detail::TestCase
- * This allows for example to have custom code on test case entry and exit by overriding TestCase::onEnter/TestCase::onExit
- */
-#define CUSTOM_TEST_CASE(TestClass, Description, Tags) \
-	INTERNAL_TEST_CASE(TestClass, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc))
-
-#define CUSTOM_TEMPLATED_TEST_CASE(TestClass, Description, Tags, ...)  \
-	INTERNAL_TEMPLATED_TEST_CASE(CZMUT_ANONYMOUS_VARIABLE(CZMUT_TemplatedTestCase), TestClass, Description, Tags, CZMUT_ANONYMOUS_VARIABLE(CZMUT_testfunc), __VA_ARGS__)
-
 #define SECTION(Description) INTERNAL_SECTION(Description, CZMUT_ANONYMOUS_VARIABLE(CZMUT_section))
 
 #define CHECK(expr) INTERNAL_CHECK(expr, cz::mut::getFilename(F(__FILE__)), __LINE__)
@@ -636,3 +626,4 @@ namespace cz::mut
 #define REQUIRE(expr) INTERNAL_REQUIRE(expr, cz::mut::getFilename(F(__FILE__)), __LINE__)
 
 #define CZMUT_LOG(fmt,...) cz::mut::detail::logFmt(F(fmt), ## __VA_ARGS__)
+
