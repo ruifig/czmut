@@ -13,14 +13,14 @@ CZMUT is a small unit test framework inspired by Catch (https://github.com/catch
 		* AVR
 		* Fairly easy to add support for others, but no documentation at the moment
 	* Desktop support
-        * Probably just Windows at the moment. Again, fairly easy to support others, but no documentation.
+        * Just Windows at the moment. Again, fairly easy to support others, but no documentation. It's mostly a couple of defines that need to be set right.
 * Minimal dependency on the C standard library
 * Small code and ram footprint
-	* RAM footprint quickly grows as you add more tests, since it needs to declare global objects (the test cases themselves). This might potentially be reduced further in the future, but complicates the code.
-	* At the time of writting, the sample, built for the Arduino Uno (release build), takes about ~421 bytes of ram and 7308 bytes of flash, although a big chunk of that you only pay once (Arduino globals and code)
+	* RAM footprint grows as you add more tests since it needs to declare global objects (the test cases themselves), but seem the documentation for how to mitigate that.
+	* At the time of writting, on my machine, the sample, built for the Arduino Uno (release build) with all the unit tests, uses about ~340 bytes of ram and 6998 bytes of flash, although a big chunk of that you only pay once (Arduino globals and code)
 * No use of exceptions. Therefore, some more advanced things are not implemented.
 * No heap use
-* Allows compile time filtered of tests (although in a very simplistic way). Look below for `CZMUT_COMPILE_TIME_TAGS`.
+* Allows compile time selection of tests (although in a very simplistic way). Look below for `CZMUT_COMPILE_TIME_TAGS`.
 
 # Documentation
 
