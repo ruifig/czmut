@@ -5,6 +5,8 @@ CZMUT is a small unit test framework inspired by Catch (https://github.com/catch
 
 **Requires C++ 17 support**.
 
+Supported architectures/platforms is limited to that I have on hand, although porting is rather simple (but not documented). I'll gladly accept help porting and testing.
+
 # Features
 
 * Support platforms
