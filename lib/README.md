@@ -8,10 +8,10 @@ CZMUT is a small unit test framework inspired by Catch (https://github.com/catch
 # Features
 
 * Support platforms
-	* Arduino
+	* Arduino. Only the following boards/microcontrollers tested at the moment:
 		* Raspberry Pi Pico
-		* AVR
-		* Fairly easy to add support for others, but no documentation at the moment
+		* AVR (Arduino Uno, Mega2560).
+		* Fairly easy to add support for others, but no documentation at the moment.
 	* Desktop support
         * Just Windows at the moment. Again, fairly easy to support others, but no documentation. It's mostly a couple of defines that need to be set right.
 * Minimal dependency on the C standard library
