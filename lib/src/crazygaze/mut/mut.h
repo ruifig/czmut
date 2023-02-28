@@ -361,7 +361,19 @@ namespace cz::mut::detail
 		static Entry* ms_activeEntry;
 	};
 
-	class SingleEntryTestCase : public TestCase
+	template<bool enabled> class SingleEntryTestCase;
+
+	template<> class SingleEntryTestCase<false>
+	{
+	public:
+		using EntryFunction = void(*)();
+		SingleEntryTestCase(const __FlashStringHelper*, const __FlashStringHelper*, EntryFunction)
+		{
+		}
+	};
+	
+	template<>
+	class SingleEntryTestCase<true> : public TestCase
 	{
 	public:
 		
@@ -511,13 +523,48 @@ namespace cz::mut
 	namespace { \
 		static const char CZMUT_CONCATENATE(desc_,TestFunction)[] PROGMEM = Description; \
 		static const char CZMUT_CONCATENATE(tags_,TestFunction)[] PROGMEM = Tags; \
-		TestClass CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase) ( \
+		TestClass<cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS))> CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase) ( \
 			(const __FlashStringHelper*) CZMUT_CONCATENATE(desc_, TestFunction), \
 			(const __FlashStringHelper*) CZMUT_CONCATENATE(tags_, TestFunction), \
 			&TestFunction); \
 	} \
-	static void TestFunction()
+	static void TestFunction() { \
+		if constexpr(cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS)))
 
+
+
+	namespace cz::mut::detail
+	{
+		template<bool enabled, typename TBaseTestClass, int NumEntries>
+		struct TemplatedTestCaseBaseClass; 
+
+		template<typename TBaseTestClass, int NumEntries>
+		struct TemplatedTestCaseBaseClass<false, TBaseTestClass, NumEntries>
+		{
+			enum { Enabled = false };
+			template<typename... FuncPtrs>
+			TemplatedTestCaseBaseClass(const __FlashStringHelper* desc, const __FlashStringHelper* tags, FuncPtrs... funcs) {}
+		};
+
+		template<typename TBaseTestClass, int NumEntries>
+		struct TemplatedTestCaseBaseClass<true, TBaseTestClass, NumEntries> : public TBaseTestClass
+		{
+			enum { Enabled = true };
+			TestCase::Entry m_myEntries[NumEntries];
+			using EntryFunction = void(*)();
+
+			template<typename... FuncPtrs>
+			TemplatedTestCaseBaseClass(const __FlashStringHelper* desc, const __FlashStringHelper* tags, FuncPtrs... funcs)
+				: TBaseTestClass(desc, tags)
+				, m_myEntries { funcs... }
+			{
+				static_assert(NumEntries == sizeof...(FuncPtrs));
+				this->setEntries(m_myEntries, NumEntries);
+			}
+		};
+	}
+
+#if 0
 #define INTERNAL_TEMPLATED_TEST_CASE(TestClass, BaseTestClass, Description, Tags, TestFunction, ...) \
 	template<typename TestType> \
 	static void TestFunction(); \
@@ -538,6 +585,27 @@ namespace cz::mut
 	} \
 	template<typename TestType> \
 	static void TestFunction()
+#else
+#define INTERNAL_TEMPLATED_TEST_CASE(TestClass, BaseTestClass, Description, Tags, TestFunction, ...) \
+	template<typename TestType> \
+	static void TestFunction(); \
+	namespace { \
+		template<typename... Type> \
+		struct TestClass : public ::cz::mut::detail::TemplatedTestCaseBaseClass<::cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS)), BaseTestClass, sizeof...(Type)> \
+		{ \
+			using Super = ::cz::mut::detail::TemplatedTestCaseBaseClass<::cz::mut::contains(cz::mut::StaticString(Tags), cz::mut::StaticString(COMPILE_TIME_TAGS)), BaseTestClass, sizeof...(Type)>;\
+			TestClass() \
+				: Super(F(Description), F(Tags), (&TestFunction<Type>)...) \
+			{ \
+				if constexpr(Super::Enabled) \
+					Super::addTypeNames(0, CZMUT_BUILD_STRING_LIST_P(__VA_ARGS__)); \
+			} \
+		}; \
+		TestClass< __VA_ARGS__ > CZMUT_ANONYMOUS_VARIABLE(CZMUT_testcase); \
+	} \
+	template<typename TestType> \
+	static void TestFunction()
+#endif
 
 
 #define INTERNAL_CHECK(expr, file, line) \

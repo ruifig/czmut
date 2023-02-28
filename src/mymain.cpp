@@ -1,6 +1,21 @@
 #include <crazygaze/mut/mut.h>
 #include <crazygaze/mut/static_string.h>
 
+//#define COMPILE_TIME_TAGS "[hello]"
+#define COMPILE_TIME_TAGS "[example]"
+
+#if 0
+#define FOO(SomeFunc) \
+	static void SomeFunc() {
+
+
+FOO(SomeFunc)
+{
+	return;
+}
+#endif
+
+#if 0
 TEST_CASE("Hello", "[example][hello]")
 {
 	using namespace cz::mut;
@@ -20,6 +35,42 @@ TEST_CASE("Hello", "[example][hello]")
 	static_assert(contains(StaticString("Hello"), StaticString("Hello")));
 	static_assert(contains(StaticString("Hello"), StaticString("ello")));
 	static_assert(!contains(StaticString("Hello"), StaticString("Hello_")));
+
+	memset(CZMUT_var, 0, sizeof(CZMUT_var));
+}}
+#else
+namespace
+{
+	void printValue(char value)
+	{
+		CZMUT_LOG("printing char% d\n", (int)value);
+	}
+
+	void printValue(int value)
+	{
+		CZMUT_LOG("printing int %d\n", value);
+	}
+}
+
+/*
+This test is templated and will be called for types "char" and "int".
+*/
+TEMPLATED_TEST_CASE("A templated test case", "[example][hello2]", char, int)
+{
+	// TestType is the type the test case is running for.
+	TestType dummy = 10;
+
+	// This will be called for type char and then for type int
+	printValue(dummy);
+}
+
+TEMPLATED_TEST_CASE("A templated test case", "[example][hello3]", char, int)
+{
+	// TestType is the type the test case is running for.
+	TestType dummy = 11;
+
+	// This will be called for type char and then for type int
+	printValue(dummy);
 }
 
 /*
@@ -28,10 +79,11 @@ Note that files with tests should normally be in a cpp file. Tests create global
 framework, so no #include directives are needed.
 Here, I'm using #include just to make it easier during development of the library.
 */
+#endif
 
-#include "../lib/examples/example_basic.h"
-#include "../lib/examples/example_sections.h"
-#include "../lib/examples/example_templated.h"
+//#include "../lib/examples/example_basic.h"
+//#include "../lib/examples/example_sections.h"
+//#include "../lib/examples/example_templated.h"
 
 #if 0
 int gSomeVar = 0;
