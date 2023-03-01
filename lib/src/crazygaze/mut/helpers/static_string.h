@@ -50,7 +50,7 @@ namespace cz::mut
 			return StaticString(begin_+1, size_-1);
 		}
 
-		constexpr const char* const begin() const {
+		constexpr auto begin() const -> const char* const {
 			return begin_;
 		}
 

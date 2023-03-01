@@ -1,8 +1,13 @@
 #pragma once
 
-
 #if __cplusplus < 201703L
-	#error "czmut needs C++17 support. On GCC, you can user the build flags -std=c++17 and -std=gnu++17. With MSVC you need /Zc:__cplusplus and /std:c++17"
+	#ifdef CZMUT_SKIP_CPP17_CHECK
+		// mut.cpp itself can still compile without C++17, but we'll still do a warning
+		#warning "czmut needs C++17 support. On GCC, you can user the build flags -std=c++17 and -std=gnu++17. With MSVC you need /Zc:__cplusplus and /std:c++17"
+	#else
+		// Users of mut.h need to use C++17
+		#error "czmut needs C++17 support. On GCC, you can user the build flags -std=c++17 and -std=gnu++17. With MSVC you need /Zc:__cplusplus and /std:c++17"
+	#endif
 #endif
 
 #ifdef _WIN32

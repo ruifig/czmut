@@ -1,4 +1,7 @@
+#define CZMUT_SKIP_CPP17_CHECK
 #include <crazygaze/mut/mut.h>
+#undef CZMUT_SKIP_CPP17_CHECK
+
 #include <stdarg.h>
 #include <stdlib.h>
 
@@ -40,7 +43,6 @@ void debugbreak()
 	#define strchr_P strchr
 	#define strrchr_P strrchr
 #elif defined(ESP8266) // there is no strchr_P in ESP8266 ROM ?
-
 static const char* strchr_P(const char* str, char c)
 {
 	char z;
@@ -71,7 +73,13 @@ const char* strrchr_P(const char* str, char c)
 
 	return (rtnval);
 }
+#elif defined(ARDUINO_ARCH_RP2040)
 
+	#if __MBED__
+	// Seems like this is missing if using the Mbed core ? (earlephilhower's core is fine)
+	#define vsnprintf_P(s, f, ...) vsnprintf((s), (f), __VA_ARGS__)
+	#endif
+	
 #endif
 
 #if CZMUT_DESKTOP
