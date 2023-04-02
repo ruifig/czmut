@@ -159,6 +159,20 @@ Example:
 
 An advantage of using `CZ_MUT_COMPILE_TIME_TAGS` is that you can have a code base with all the unit tests for a given library without worrying about Flash or RAM usage, and selectively compile in only the tests you want.
 
+The best way to use `CZ_MUT_COMPILE_TIME_TAGS` is to set it from the compiler's command line for the entire project, but notice that the following wont work:
+
+```
+-DCZ_MUT_COMPILE_TIME_TAGS="[mylib]"
+```
+
+This will actually define the macro as `[mylib]`, and NOT `"[mylib]"`, causing compile errors.
+
+To work around this, you need to escape the quotes:
+
+```
+-DCZ_MUT_COMPILE_TIME_TAGS=\"[mylib]\"
+```
+
 
 ### Assertion macros
 

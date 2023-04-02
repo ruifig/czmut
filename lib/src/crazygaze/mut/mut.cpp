@@ -90,11 +90,11 @@ void logStr(const char* str)
 #elif defined(ARDUINO)
 void logStr(const char* str)
 {
-	Serial.print(str);
+	CZMUT_SERIAL.print(str);
 }
 void logStr(const __FlashStringHelper* str)
 {
-	Serial.print(str);
+	CZMUT_SERIAL.print(str);
 }
 #else
 	#error Unknown or unsupported platform
@@ -111,7 +111,7 @@ void logFmt(const __FlashStringHelper* fmt, ...)
 	char buf[bufSize];
 	vsnprintf_P(buf, bufSize, (const char*)fmt, args);
 	buf[bufSize-1] = 0;
-	Serial.print(buf);
+	CZMUT_SERIAL.print(buf);
 #else
 	#error Unknown or unsupported platform
 #endif
@@ -124,7 +124,7 @@ void flushlog()
 	#if CZMUT_DESKTOP
 		fflush(stdout);
 	#elif CZMUT_ARDUINO
-		Serial.flush();
+		CZMUT_SERIAL.flush();
 	#else
 		#error Unknown or unsupported platform
 	#endif
@@ -231,7 +231,7 @@ void logRange(FlashStringIterator start, FlashStringIterator end)
 	while(start!=end)
 	{
 		#if defined(ARDUINO)
-			Serial.print(*start);
+			CZMUT_SERIAL.print(*start);
 		#else
 			printf("%c", *start);
 		#endif

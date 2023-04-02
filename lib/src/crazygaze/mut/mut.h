@@ -22,6 +22,10 @@
 	#define CZMUT_AVR 0
 #endif
 
+#ifndef CZMUT_SERIAL
+	#define CZMUT_SERIAL Serial
+#endif
+
 #if defined(ARDUINO_ARCH_RP2040)
 	#define CZMUT_RP2040 1
 #else
@@ -74,6 +78,10 @@
 #else
 	#define ANONYMOUS_VARIABLE(str) \
 		CZMUT_CONCATENATE(str,__LINE__)
+#endif
+
+#ifndef CZMUT_COMPILE_TIME_TAGS
+	#define CZMUT_COMPILE_TIME_TAGS ""
 #endif
 
 namespace cz::mut
